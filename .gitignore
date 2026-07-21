@@ -1,0 +1,25 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# --- Virtual environments (never commit these) ---
+.venv/
+venv/
+env/
+
+# --- Streamlit secrets (NEVER commit — contains the access code) ---
+.streamlit/secrets.toml
+
+# --- Local launcher marker ---
+.venv/.installed
+
+# --- OS cruft ---
+.DS_Store
+Thumbs.db
+
+# --- Tunnel/agent binaries if dropped in the folder ---
+ngrok.exe
+cloudflared.exe
+ngrok_error.txt
