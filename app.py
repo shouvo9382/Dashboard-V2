@@ -142,42 +142,54 @@ h1,h2,h3,h4,.pname,.gv,.kpi .value {{ font-family:'Plus Jakarta Sans','Inter',sa
   box-shadow:inset 3px 0 0 var(--green); }}
 [data-testid="stSidebar"] [role="radiogroup"] label > div:first-child {{ display:none; }}
 [data-testid="stSidebar"] [data-testid="stWidgetLabel"] {{ color:#8fb0cc !important; }}
-[data-testid="stSidebar"] input, [data-testid="stSidebar"] .stTextInput input {{
-  background:rgba(255,255,255,.10) !important;
-  color:#ffffff !important; -webkit-text-fill-color:#ffffff !important;
-  border:1px solid rgba(255,255,255,.22) !important; border-radius:10px !important; }}
-[data-testid="stSidebar"] .stTextInput input::placeholder {{
-  color:#9fb8cf !important; -webkit-text-fill-color:#9fb8cf !important; opacity:1 !important; }}
 
 /* ==========================================================================
-   Sidebar select controls (Sport, Player, Division, District, ... filters).
-   Streamlit guarantees stable data-testid wrappers (stSelectbox / stMultiSelect)
-   regardless of internal widget-library version, so we anchor on those and then
-   force EVERY descendant's background/color explicitly with !important. This
-   is intentionally broad/redundant rather than guessing exact internal roles,
-   because internal structure can change between Streamlit versions. ---- */
+   UNIVERSAL RULE (sidebar AND main area, every page):
+     Any control with a light/white box (text input, selectbox, multiselect,
+     dropdown popover) -> WHITE background + BLACK text.
+     Any element with an intentionally dark/coloured background (nav rail,
+     selected-tag chips, the masthead) -> keeps LIGHT text.
+   This one rule replaces all the earlier per-widget guesses, so a box's
+   background and its text colour can never end up mismatched again. ---- */
+[data-testid="stSidebar"] input,
+[data-testid="stSidebar"] textarea,
 [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div,
 [data-testid="stSidebar"] [data-testid="stMultiSelect"] > div > div {{
-  background:#ffffff !important; border-radius:10px !important;
-  border:1px solid rgba(255,255,255,.35) !important; }}
-[data-testid="stSidebar"] [data-testid="stSelectbox"] * ,
+  background:#ffffff !important;
+  border:1px solid rgba(255,255,255,.35) !important; border-radius:10px !important; }}
+[data-testid="stSidebar"] input,
+[data-testid="stSidebar"] textarea,
+[data-testid="stSidebar"] [data-testid="stSelectbox"] *,
 [data-testid="stSidebar"] [data-testid="stMultiSelect"] * {{
-  color:{INK} !important; -webkit-text-fill-color:{INK} !important;
-  fill:{INK} !important; }}
-[data-testid="stSidebar"] [data-testid="stSelectbox"] svg,
-[data-testid="stSidebar"] [data-testid="stMultiSelect"] svg {{ fill:{MUTED} !important; }}
-/* Selected multiselect tags (chips): solid colour pill, white text/icon only */
-[data-testid="stSidebar"] [data-testid="stMultiSelect"] span[data-baseweb="tag"] {{
-  background:linear-gradient(100deg,{NAVY},{GREEN}) !important; border:none !important; }}
-[data-testid="stSidebar"] [data-testid="stMultiSelect"] span[data-baseweb="tag"] * {{
-  color:#ffffff !important; -webkit-text-fill-color:#ffffff !important;
-  fill:#ffffff !important; }}
+  color:{INK} !important; -webkit-text-fill-color:{INK} !important; fill:{INK} !important; }}
+[data-testid="stSidebar"] input::placeholder {{
+  color:{MUTED} !important; -webkit-text-fill-color:{MUTED} !important; opacity:1 !important; }}
 
-/* Dropdown option lists render in a portal outside the sidebar (light theme,
-   always readable dark-on-white) — just add matching card styling. */
+/* Selected multiselect tags (chips): these ARE a deliberate colour background,
+   so they correctly keep white text/icon — the one intentional exception. */
+[data-testid="stMultiSelect"] span[data-baseweb="tag"] {{
+  background:linear-gradient(100deg,{NAVY},{GREEN}) !important; border:none !important; }}
+[data-testid="stMultiSelect"] span[data-baseweb="tag"] * {{
+  color:#ffffff !important; -webkit-text-fill-color:#ffffff !important; fill:#ffffff !important; }}
+
+/* Dropdown option lists (render in a portal, outside sidebar/main containers) */
 div[data-baseweb="popover"] {{
   background:#ffffff !important; border-radius:12px !important; box-shadow:var(--shadow-lg) !important; }}
 div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color:{INK} !important; }}
+
+/* Same universal rule for the MAIN content area (Coach Directory search,
+   News Center filters, Rankings selects, etc.) — belt-and-braces in case any
+   global light-text rule elsewhere ever leaks in. */
+.main input, .main textarea,
+.main [data-testid="stSelectbox"] > div > div,
+.main [data-testid="stMultiSelect"] > div > div {{
+  background:#ffffff !important; }}
+.main input, .main textarea,
+.main [data-testid="stSelectbox"] *,
+.main [data-testid="stMultiSelect"] * {{
+  color:{INK} !important; -webkit-text-fill-color:{INK} !important; }}
+.main [data-testid="stMultiSelect"] span[data-baseweb="tag"] * {{
+  color:#ffffff !important; -webkit-text-fill-color:#ffffff !important; }}
 
 [data-testid="stSidebar"] [data-testid="stExpander"] {{
   background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09);
