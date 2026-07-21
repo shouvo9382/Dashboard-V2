@@ -165,6 +165,19 @@ h1,h2,h3,h4,.pname,.gv,.kpi .value {{ font-family:'Plus Jakarta Sans','Inter',sa
 [data-testid="stSidebar"] input::placeholder {{
   color:{MUTED} !important; -webkit-text-fill-color:{MUTED} !important; opacity:1 !important; }}
 
+/* The FIELD NAME/LABEL above each control ("Sport", "Player", "Division", ...)
+   sits directly on the dark sidebar, NOT inside the white input box — so it
+   must stay light. It is nested inside the same wrapper as the control, so
+   the wildcard rule above would otherwise also darken it; this more specific
+   rule (extra data-testid segment) wins over that wildcard and restores it. */
+[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-testid="stWidgetLabel"],
+[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-testid="stWidgetLabel"] *,
+[data-testid="stSidebar"] [data-testid="stMultiSelect"] [data-testid="stWidgetLabel"],
+[data-testid="stSidebar"] [data-testid="stMultiSelect"] [data-testid="stWidgetLabel"] *,
+[data-testid="stSidebar"] [data-testid="stTextInput"] [data-testid="stWidgetLabel"],
+[data-testid="stSidebar"] [data-testid="stTextInput"] [data-testid="stWidgetLabel"] * {{
+  color:#c9dced !important; -webkit-text-fill-color:#c9dced !important; }}
+
 /* Selected multiselect tags (chips): these ARE a deliberate colour background,
    so they correctly keep white text/icon — the one intentional exception. */
 [data-testid="stMultiSelect"] span[data-baseweb="tag"] {{
