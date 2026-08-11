@@ -1225,3 +1225,114 @@ def get_notun_kuri():
         "by_division": by_division,
         "by_discipline": by_discipline,
     }
+
+
+# --------------------------------------------------------------------------- #
+#  9) NOTUN KURI STIPEND PROGRAM — 400 selected stars, monthly disbursement    #
+# --------------------------------------------------------------------------- #
+# Illustrative demonstration data. These represent MINORS (the Notun Kuri
+# talent-hunt age band is 12–14), so no real names, guardian contacts, or
+# payment details are ever used here — every record is synthetically
+# generated, consistent with the rest of the platform's illustrative data.
+#
+# This module is a MONITORING & DEMONSTRATION system, not a live payment
+# processor. No real money moves through this code. The "Process Payment"
+# flow in the UI simulates the user journey so the ministry can evaluate the
+# workflow before commissioning a real gateway integration (e.g. SSLCommerz).
+
+STIPEND_AMOUNT: int = 3000   # BDT per star per month — ILLUSTRATIVE PLACEHOLDER,
+                             # not a ministry-confirmed figure. Change here once
+                             # a real amount is set.
+STIPEND_STAR_COUNT: int = 400
+STIPEND_DISBURSEMENT_METHODS = ["bKash", "Nagad", "Bank Transfer"]
+STIPEND_MONTHS_OF_HISTORY: int = 6
+
+
+def generate_stipend_stars(n: int = STIPEND_STAR_COUNT) -> pd.DataFrame:
+    """The 400 selected Notun Kuri stars receiving a monthly stipend.
+
+    Selected from the broader Notun Kuri talent pool (see get_notun_kuri());
+    this is a smaller, individually-tracked roster for payment monitoring.
+    """
+    today = pd.Timestamp.today().normalize()
+    rows = []
+    for i in range(n):
+        rng = _seed(f"stipend-star-{i}")
+        gender = "M" if rng.random() < 0.62 else "F"
+        name = _make_name(gender, rng)
+        division = rng.choice(DIVISIONS)
+        district = rng.choice(DISTRICTS[division])
+        sport = rng.choice(NOTUN_KURI_SPORTS)
+        age = rng.randint(12, 14)
+        method = rng.choices(STIPEND_DISBURSEMENT_METHODS, weights=[0.5, 0.35, 0.15])[0]
+        # Selection date staggered over the last ~5 months, so onboarding
+        # looks like a real wave rather than everyone starting on day one.
+        sel_date = today - pd.Timedelta(days=rng.randint(30, 165))
+        status = rng.choices(["Active", "On Hold"], weights=[0.93, 0.07])[0]
+
+        rows.append({
+            "star_id": f"NK-STAR-{i+1:04d}",
+            "name": name,
+            "gender": "Male" if gender == "M" else "Female",
+            "age": age,
+            "division": division,
+            "district": district,
+            "sport": sport,
+            "selection_date": sel_date,
+            "guardian_name": f"Guardian of {name.split()[0]}",  # placeholder only
+            "disbursement_method": method,
+            "mobile_account": f"01{rng.randint(3,9)}{rng.randint(10**7, 10**8-1)}",
+            "monthly_amount": STIPEND_AMOUNT,
+            "status": status,
+        })
+    return pd.DataFrame(rows)
+
+
+def generate_stipend_payments(stars: pd.DataFrame,
+                              months: int = STIPEND_MONTHS_OF_HISTORY) -> pd.DataFrame:
+    """Monthly disbursement records for each star, trailing `months` months.
+
+    Payment success is deterministic-but-realistic: most pay cleanly first
+    try, the remainder show a Pending/Failed/Held state so the monitoring
+    view has something real to triage — an all-green demo looks fabricated.
+    """
+    today = pd.Timestamp.today().normalize()
+    month_starts = [(today.replace(day=1) - pd.DateOffset(months=m))
+                    for m in range(months - 1, -1, -1)]
+
+    rows = []
+    for _, star in stars.iterrows():
+        rng = _seed(f"stipend-pay-{star['star_id']}")
+        sel = pd.Timestamp(star["selection_date"]).replace(day=1)
+        for month in month_starts:
+            if month < sel:
+                continue  # not yet enrolled this month
+            r = rng.random()
+            if star["status"] == "On Hold" and rng.random() < 0.7:
+                status = "Held"
+            elif r < 0.90:
+                status = "Paid"
+            elif r < 0.97:
+                status = "Pending"
+            else:
+                status = "Failed"
+            pay_date = (month + pd.Timedelta(days=rng.randint(1, 9))
+                       if status == "Paid" else pd.NaT)
+            rows.append({
+                "star_id": star["star_id"],
+                "month": month,
+                "amount": star["monthly_amount"],
+                "method": star["disbursement_method"],
+                "status": status,
+                "payment_date": pay_date,
+                "transaction_ref": (f"TXN-{rng.randint(10**8, 10**9-1)}"
+                                    if status == "Paid" else ""),
+            })
+    return pd.DataFrame(rows)
+
+
+def get_stipend_program() -> dict:
+    """Build (and cache within the call) the full stipend program dataset."""
+    stars = generate_stipend_stars()
+    payments = generate_stipend_payments(stars)
+    return {"stars": stars, "payments": payments}

@@ -476,7 +476,7 @@ with st.sidebar:
 
     page = st.radio(
         "Navigate",
-        ["At a Glance", "Notun Kuri", "Executive Summary", "Player Profile",
+        ["At a Glance", "Notun Kuri", "Stipend Program", "Executive Summary", "Player Profile",
          "Performance & Fitness", "Injury & Training", "Rankings & Leaderboard",
          "Coach Directory", "Rule Book", "News Center"],
         label_visibility="collapsed",
@@ -1533,8 +1533,228 @@ def page_notunkuri():
 
 
 # --------------------------------------------------------------------------- #
-#  PAGE — AT A GLANCE (landing)                                                #
+#  PAGE — STIPEND PROGRAM (Notun Kuri stars — payment monitoring)             #
 # --------------------------------------------------------------------------- #
+STIPEND_STATUS_COLORS = {
+    "Paid": GREEN, "Pending": GOLD, "Failed": "#c0563b",
+    "Held": MUTED,
+}
+
+
+def page_stipend():
+    import dataset as _ds
+    prog = _ds.get_stipend_program()
+    stars, pay = prog["stars"], prog["payments"]
+
+    st.markdown(
+        "<div class='gov-header' style='background:linear-gradient(120deg,"
+        f"{GOLD} 0%, #a97f2e 55%, {NAVY} 130%)'>"
+        "<div style='font-size:2.4rem'>💳</div>"
+        "<div><h1>Notun Kuri Stipend Program</h1>"
+        "<div class='sub'>Monthly development allowance · Top 400 selected stars · "
+        "Ministry of Youth &amp; Sports</div>"
+        "<div class='flag'></div></div></div>", unsafe_allow_html=True)
+
+    st.info(
+        f"💡 This is a **monitoring &amp; demonstration system** — figures are "
+        f"illustrative (placeholder stipend: **৳{_ds.STIPEND_AMOUNT:,}/month**, "
+        f"not a ministry-confirmed amount). No real payment is processed here. "
+        f"The **Process Payment** flow below demonstrates the intended workflow; "
+        f"real disbursement requires a licensed gateway integration "
+        f"(e.g. SSLCommerz) with the ministry's merchant credentials."
+    )
+
+    # ---- Headline KPIs -----------------------------------------------------
+    latest_month = pay["month"].max()
+    this_month = pay[pay["month"] == latest_month]
+    paid_this_month = this_month[this_month["status"] == "Paid"]
+    pending_n = (this_month["status"] == "Pending").sum()
+    failed_n = (this_month["status"] == "Failed").sum()
+    held_n = (this_month["status"] == "Held").sum()
+    total_disbursed_all_time = pay[pay["status"] == "Paid"]["amount"].sum()
+    active_stars = (stars["status"] == "Active").sum()
+
+    tiles = [
+        ("⭐", f"{len(stars):,}", "Selected stars", (NAVY, NAVY_DARK)),
+        ("✅", f"{active_stars:,}", "Active this month", (GREEN, "#14663a")),
+        ("💰", f"৳{paid_this_month['amount'].sum():,.0f}", "Disbursed this month", (GOLD, "#a97f2e")),
+        ("📊", f"৳{total_disbursed_all_time:,.0f}", "Total disbursed (all-time)", (NAVY, GREEN)),
+    ]
+    cols = st.columns(4)
+    for col, (icon, val, label, (c1, c2)) in zip(cols, tiles):
+        col.markdown(
+            f"<div class='glance' style='min-height:120px;"
+            f"background:linear-gradient(135deg,{c1},{c2})'>"
+            f"<div class='gi'>{icon}</div>"
+            f"<div><div class='gv'>{val}</div><div class='gl'>{label}</div></div></div>",
+            unsafe_allow_html=True)
+
+    st.write("")
+    c1, c2, c3, c4 = st.columns(4)
+    kpi(c1, "Paid this month", f"{len(paid_this_month)}",
+        f"of {len(this_month)} due", cls="green")
+    kpi(c2, "Pending", f"{pending_n}", "awaiting confirmation", cls="gold")
+    kpi(c3, "Failed", f"{failed_n}", "needs retry", cls="")
+    kpi(c4, "On hold", f"{held_n}", "enrollment paused", cls="")
+
+    st.write("")
+    left, right = st.columns([1.2, 1])
+    with left:
+        st.markdown("<div class='section-title'>Monthly disbursement trend</div>",
+                    unsafe_allow_html=True)
+        trend = (pay[pay["status"] == "Paid"].groupby("month")["amount"]
+                .sum().reset_index())
+        fig = px.bar(trend, x="month", y="amount", text="amount",
+                     labels={"month": "", "amount": "Disbursed (BDT)"})
+        fig.update_traces(marker_color=GOLD, texttemplate="৳%{text:,.0f}",
+                          textposition="outside")
+        fig.update_layout(height=340, margin=dict(l=0, r=0, t=6, b=0))
+        st.plotly_chart(fig, width='stretch')
+    with right:
+        st.markdown("<div class='section-title'>This month's status</div>",
+                    unsafe_allow_html=True)
+        status_counts = (this_month["status"].value_counts()
+                        .rename_axis("Status").reset_index(name="Count"))
+        fig = px.pie(status_counts, names="Status", values="Count", hole=0.58,
+                     color="Status", color_discrete_map=STIPEND_STATUS_COLORS)
+        fig.update_layout(height=340, margin=dict(l=0, r=0, t=6, b=0),
+                          legend=dict(orientation="h", y=-0.1))
+        st.plotly_chart(fig, width='stretch')
+
+    l2, r2 = st.columns(2)
+    with l2:
+        st.markdown("<div class='section-title'>Stars by division</div>",
+                    unsafe_allow_html=True)
+        by_div = (stars["division"].value_counts()
+                 .rename_axis("Division").reset_index(name="Stars")
+                 .sort_values("Stars"))
+        fig = px.bar(by_div, x="Stars", y="Division", orientation="h",
+                     color="Stars", color_continuous_scale=[[0, "#fdf3dc"], [1, GOLD]])
+        fig.update_layout(height=320, margin=dict(l=0, r=10, t=6, b=0),
+                          coloraxis_showscale=False)
+        st.plotly_chart(fig, width='stretch')
+    with r2:
+        st.markdown("<div class='section-title'>Stars by disbursement method</div>",
+                    unsafe_allow_html=True)
+        by_method = (stars["disbursement_method"].value_counts()
+                    .rename_axis("Method").reset_index(name="Stars"))
+        fig = px.pie(by_method, names="Method", values="Stars", hole=0.5,
+                     color_discrete_sequence=[NAVY, GREEN, GOLD])
+        fig.update_layout(height=320, margin=dict(l=0, r=0, t=6, b=0),
+                          legend=dict(orientation="h", y=-0.12))
+        st.plotly_chart(fig, width='stretch')
+
+    # ---- Payment register ---------------------------------------------------
+    st.markdown("<div class='section-title'>Payment register — this month</div>",
+                unsafe_allow_html=True)
+    q1, q2, q3 = st.columns([1.6, 1, 1])
+    search = q1.text_input("🔍 Search star", placeholder="name, ID, division…",
+                           key="stipend_search")
+    status_sel = q2.multiselect("Status", ["Paid", "Pending", "Failed", "Held"],
+                                key="stipend_status")
+    div_sel = q3.multiselect("Division", sorted(stars["division"].unique()),
+                             key="stipend_div")
+
+    reg = this_month.merge(stars[["star_id", "name", "division", "sport",
+                                  "disbursement_method"]], on="star_id", how="left")
+    if search:
+        s = search.strip().lower()
+        hay = (reg["name"].fillna("") + " " + reg["star_id"].fillna("")
+               + " " + reg["division"].fillna("")).str.lower()
+        reg = reg[hay.str.contains(s, regex=False)]
+    if status_sel:
+        reg = reg[reg["status"].isin(status_sel)]
+    if div_sel:
+        reg = reg[reg["division"].isin(div_sel)]
+
+    st.caption(f"{len(reg):,} of {len(this_month):,} stars shown")
+    disp = reg[["star_id", "name", "division", "sport", "amount", "method",
+               "status", "payment_date", "transaction_ref"]].copy()
+    disp["payment_date"] = pd.to_datetime(disp["payment_date"]).dt.strftime("%d %b %Y")
+    disp["payment_date"] = disp["payment_date"].fillna("—")
+    disp = disp.rename(columns={"star_id": "Star ID", "name": "Name",
+                                "division": "Division", "sport": "Sport",
+                                "amount": "Amount (BDT)", "method": "Method",
+                                "status": "Status", "payment_date": "Paid On",
+                                "transaction_ref": "Transaction Ref"})
+
+    def _status_tone(r):
+        color = STIPEND_STATUS_COLORS.get(r["Status"], MUTED)
+        return [f"background-color:{color}22" if c == "Status" else ""
+               for c in r.index]
+
+    styled = (disp.style
+              .apply(_status_tone, axis=1)
+              .format({"Amount (BDT)": "৳{:,.0f}"}))
+    st.dataframe(styled, width='stretch', height=min(480, 70 + 35 * len(disp)),
+                 hide_index=True)
+    st.download_button(
+        "⬇️ Download this register (CSV)",
+        disp.to_csv(index=False).encode("utf-8"),
+        file_name=f"stipend_register_{pd.Timestamp(latest_month).strftime('%Y_%m')}.csv",
+        mime="text/csv",
+    )
+
+    # ---- Process Payment demonstration flow ---------------------------------
+    st.write("")
+    st.markdown("<div class='section-title'>Process payment "
+               "<span style='font-size:.7rem;color:#5a6b7b'>"
+               "(demonstration workflow)</span></div>", unsafe_allow_html=True)
+    unpaid = this_month[this_month["status"].isin(["Pending", "Failed"])].merge(
+        stars[["star_id", "name", "division"]], on="star_id", how="left")
+
+    if unpaid.empty:
+        st.success("✅ All stars are paid for this cycle. No action needed.")
+    else:
+        options = (unpaid["name"] + "  ·  " + unpaid["star_id"]
+                  + "  ·  " + unpaid["division"]).tolist()
+        pick = st.selectbox(f"Select a star to process ({len(unpaid)} awaiting payment)",
+                            options, key="stipend_process_pick")
+        picked_id = pick.split("·")[1].strip()
+        picked_row = unpaid[unpaid["star_id"] == picked_id].iloc[0]
+
+        pc1, pc2 = st.columns([1, 1.4])
+        with pc1:
+            st.markdown(
+                f"<div class='profile'>"
+                f"<div class='metric-row'><span class='k'>Star</span>"
+                f"<span class='v'>{picked_row['name']}</span></div>"
+                f"<div class='metric-row'><span class='k'>Division</span>"
+                f"<span class='v'>{picked_row['division']}</span></div>"
+                f"<div class='metric-row'><span class='k'>Amount</span>"
+                f"<span class='v'>৳{picked_row['amount']:,.0f}</span></div>"
+                f"<div class='metric-row'><span class='k'>Method</span>"
+                f"<span class='v'>{picked_row['method']}</span></div>"
+                f"<div class='metric-row'><span class='k'>Current status</span>"
+                f"<span class='v' style='color:{STIPEND_STATUS_COLORS.get(picked_row['status'], MUTED)}'>"
+                f"● {picked_row['status']}</span></div></div>",
+                unsafe_allow_html=True)
+        with pc2:
+            st.markdown(
+                f"<div class='profile'>"
+                f"<div style='font-weight:700;color:{NAVY};margin-bottom:8px'>"
+                f"Gateway integration point</div>"
+                f"<div style='color:{MUTED};font-size:.9rem;line-height:1.5'>"
+                f"This button demonstrates where a real payment gateway "
+                f"(e.g. <b>SSLCommerz</b>) would be called with the ministry's "
+                f"merchant credentials to disburse via {picked_row['method']}. "
+                f"No real transaction occurs in this demonstration.</div></div>",
+                unsafe_allow_html=True)
+            if st.button(f"🔒 Simulate disbursement — ৳{picked_row['amount']:,.0f}",
+                        key="stipend_simulate_btn", type="primary"):
+                st.success(
+                    f"✅ Demonstration complete: ৳{picked_row['amount']:,.0f} would be "
+                    f"sent to {picked_row['name']} via {picked_row['method']} "
+                    f"pending live gateway integration."
+                )
+                st.caption("No real funds were moved. This confirms the intended "
+                          "user flow for ministry review.")
+
+    st.caption("All stars, guardians, and payment details on this page are "
+              "synthetic demonstration data. No real minors' financial "
+              "information is used or displayed.")
+
+
 @st.cache_data(show_spinner=False)
 def _load_bd_geojson():
     import json
@@ -1832,6 +2052,7 @@ def page_news():
 PAGES = {
     "At a Glance": page_glance,
     "Notun Kuri": page_notunkuri,
+    "Stipend Program": page_stipend,
     "Executive Summary": page_summary,
     "Player Profile": page_profile,
     "Performance & Fitness": page_fitness,
