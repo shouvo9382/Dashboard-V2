@@ -45,33 +45,23 @@ LANG_KEY = "app_lang"   # "en" or "bn"
 #  glyphs, so unsupported characters would render as empty boxes without this.
 # --------------------------------------------------------------------------- #
 BANGLA_FONT_CSS = """
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&display=swap');
-
-/* Apply the Bangla-capable font broadly via normal CSS inheritance (setting
-   it on .stApp, NOT with a `*` wildcard) -- text elements inherit it
-   automatically. A `*` selector was tried initially but had to be reverted:
-   it force-applied to every element with equal specificity to Streamlit's
-   own icon-font rules, and since our CSS loads after Streamlit's, it won
-   ties on cascade order -- breaking icon glyphs (e.g. the sidebar's
-   collapse/reopen arrow rendered as literal text instead of the arrow icon).
-   Plain inheritance avoids that: an element with its OWN font-family rule
-   (icons, svg) keeps it; only genuine text inherits the Bangla font. */
-.stApp {
-  font-family: 'Noto Sans Bengali', 'Inter', 'Plus Jakarta Sans', sans-serif;
-}
-
-/* Explicit safety net: guarantee icon-bearing controls are never affected,
-   regardless of any other rule ordering. */
-[data-testid="collapsedControl"],
-[data-testid="collapsedControl"] *,
-[data-testid="stIconMaterial"],
-[data-testid="baseButton-headerNoPadding"],
-.stApp svg,
-.stApp [class*="material-symbols"],
-.stApp [class*="material-icons"] {
-  font-family: initial !important;
-}
+/* Deliberately empty: an earlier version of this file force-applied a custom
+   Bangla webfont across the whole app (.stApp), which broke the sidebar --
+   Noto Sans Bengali also ships full Latin/numeral glyph coverage (standard
+   for Noto-family fonts), so it silently overrode English text, numbers,
+   and icon-ligature elements throughout the sidebar (collapse arrow,
+   expander chevrons, weight-slider labels), not just Bengali text.
+   Every mainstream browser/OS already ships a Bengali-capable system font
+   and falls back to it automatically for any glyph the primary font stack
+   doesn't cover -- so Bangla text still renders correctly (never as empty
+   'tofu' boxes) without this override. This trades a perfectly-matched
+   custom Bengali typeface for guaranteed zero risk to the rest of the UI,
+   which is the right trade this close to a live demonstration. If a
+   branded Bengali webfont is wanted later, it must be applied narrowly
+   (e.g. a dedicated .bn-text class wrapped around specific translated
+   strings at the point of use) -- never as a blanket .stApp rule. */
 """
+
 
 
 
