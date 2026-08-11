@@ -48,6 +48,8 @@ _pio.templates.default = "plotly+gov"
 import streamlit as st
 
 import scoring
+import i18n
+from i18n import t, gt, ts, is_bangla, LANG_KEY
 
 # --------------------------------------------------------------------------- #
 #  CONSTANTS + THEME                                                           #
@@ -364,6 +366,7 @@ hr {{ border-color:var(--line); margin:1rem 0; }}
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
+st.markdown(f"<style>{i18n.BANGLA_FONT_CSS}</style>", unsafe_allow_html=True)
 
 
 
@@ -443,6 +446,12 @@ def get_coaches(path_str: str) -> pd.DataFrame:
     return dataset.load_coaches(sports)
 
 
+def _stt(english_text: str) -> str:
+    """Section-title translation helper: returns the Bangla version of a known
+    section heading when in Bangla mode, else the original English unchanged."""
+    return i18n.SECTION_TITLES_BN.get(english_text, english_text) if is_bangla() else english_text
+
+
 def kpi(col, label, value, foot="", cls=""):
     col.markdown(
         f"<div class='kpi {cls}'><div class='label'>{label}</div>"
@@ -462,31 +471,46 @@ def initials(name: str) -> str:
 #  SIDEBAR — branding, navigation, cascading filters, weights                 #
 # --------------------------------------------------------------------------- #
 with st.sidebar:
+    st.session_state.setdefault(LANG_KEY, "en")
+    lang_pick = st.radio(t("language_label"), ["English", "বাংলা"],
+                        index=(0 if st.session_state[LANG_KEY] == "en" else 1),
+                        horizontal=True, key="lang_radio", label_visibility="visible")
+    st.session_state[LANG_KEY] = "bn" if lang_pick == "বাংলা" else "en"
+    st.markdown("<hr style='margin:6px 0'>", unsafe_allow_html=True)
+
     st.markdown(
         "<div class='brand'>"
         "<div style='width:44px;height:44px;border-radius:13px;flex-shrink:0;"
         "background:linear-gradient(135deg,#1b8a4c,#0b4f8a);display:flex;"
         "align-items:center;justify-content:center;font-size:1.5rem;"
         "box-shadow:0 6px 16px rgba(0,0,0,.3)'>🏅</div>"
-        "<div><div class='bt'>Sports Ministry</div>"
-        "<div class='bs'>National Performance Portal</div></div></div>",
+        f"<div><div class='bt'>{t('brand_title')}</div>"
+        f"<div class='bs'>{t('brand_sub')}</div></div></div>",
         unsafe_allow_html=True,
     )
-    st.markdown("<div class='navlabel'>Navigation</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='navlabel'>{t('nav_label')}</div>", unsafe_allow_html=True)
 
-    page = st.radio(
-        "Navigate",
-        ["At a Glance", "Notun Kuri", "Stipend Program", "Executive Summary", "Player Profile",
-         "Performance & Fitness", "Injury & Training", "Rankings & Leaderboard",
-         "Coach Directory", "Rule Book", "News Center"],
-        label_visibility="collapsed",
+    _nav_keys = ["nav_glance", "nav_notunkuri", "nav_stipend", "nav_summary",
+                "nav_profile", "nav_fitness", "nav_injury", "nav_rankings",
+                "nav_coaches", "nav_rules", "nav_news"]
+    _nav_en = ["At a Glance", "Notun Kuri", "Stipend Program", "Executive Summary",
+              "Player Profile", "Performance & Fitness", "Injury & Training",
+              "Rankings & Leaderboard", "Coach Directory", "Rule Book", "News Center"]
+    _nav_display = [t(k) for k in _nav_keys]
+    _nav_display_to_en = dict(zip(_nav_display, _nav_en))
+
+    page_display = st.radio(
+        "Navigate", _nav_display, label_visibility="collapsed", key="nav_radio",
     )
-    st.markdown("<div class='navlabel'>Filters</div>", unsafe_allow_html=True)
+    page = _nav_display_to_en[page_display]  # internal routing stays on English keys
+    st.markdown(f"<div class='navlabel'>{t('filters_label')}</div>", unsafe_allow_html=True)
 
     # --- Cascading filters: Sport -> (advanced) -> Player -------------------
     clean = get_clean_data(str(DATA_PATH))
     sports = sorted(clean["Sport"].dropna().unique().tolist())
-    sport_choice = st.selectbox("🏆 Sport", ["All Sports"] + sports, index=0)
+    sport_choice = st.selectbox(t("filter_sport"), [t("filter_all_sports")] + sports, index=0)
+    if sport_choice == t("filter_all_sports"):
+        sport_choice = "All Sports"  # normalise back to the internal sentinel
 
     pool = clean if sport_choice == "All Sports" else clean[clean["Sport"] == sport_choice]
 
@@ -498,22 +522,22 @@ with st.sidebar:
             st.session_state.pop(k, None)
 
     # Smart search across name / club / district / event.
-    search = st.text_input("🔍 Smart search",
-                           placeholder="name, club, district, event…", key="f_search")
+    search = st.text_input(t("filter_search"),
+                           placeholder=t("filter_search_placeholder"), key="f_search")
 
-    with st.expander("🔎 Advanced filters", expanded=False):
-        div_sel = st.multiselect("Division", sorted(clean["division"].dropna().unique()), key="f_div")
-        dist_sel = st.multiselect("District", sorted(pool["district"].dropna().unique()), key="f_dist")
-        gender_sel = st.multiselect("Gender", sorted(clean["gender"].dropna().unique()), key="f_gender")
-        avail_sel = st.multiselect("Availability", sorted(clean["injury_status"].dropna().unique()), key="f_avail")
-        club_sel = st.multiselect("Club", sorted(clean["club"].dropna().unique()), key="f_club")
-        nat_sel = st.multiselect("National team", sorted(clean["national_team"].dropna().unique()), key="f_nat")
+    with st.expander(t("filter_advanced"), expanded=False):
+        div_sel = st.multiselect(t("filter_division"), sorted(clean["division"].dropna().unique()), key="f_div")
+        dist_sel = st.multiselect(t("filter_district"), sorted(pool["district"].dropna().unique()), key="f_dist")
+        gender_sel = st.multiselect(t("filter_gender"), sorted(clean["gender"].dropna().unique()), key="f_gender")
+        avail_sel = st.multiselect(t("filter_availability"), sorted(clean["injury_status"].dropna().unique()), key="f_avail")
+        club_sel = st.multiselect(t("filter_club"), sorted(clean["club"].dropna().unique()), key="f_club")
+        nat_sel = st.multiselect(t("filter_national_team"), sorted(clean["national_team"].dropna().unique()), key="f_nat")
         a_lo, a_hi = int(clean["age"].min()), int(clean["age"].max())
-        age_rng = st.slider("Age", a_lo, a_hi, (a_lo, a_hi), key="f_age")
-        perf_rng = st.slider("Performance rating", 0, 100, (0, 100), 5, key="f_perf")
-        fit_rng = st.slider("Fitness rating", 0, 100, (0, 100), 5, key="f_fit")
-        career_rng = st.slider("Career win %", 0, 100, (0, 100), 5, key="f_career")
-        st.button("↺ Clear filters",
+        age_rng = st.slider(t("filter_age"), a_lo, a_hi, (a_lo, a_hi), key="f_age")
+        perf_rng = st.slider(t("filter_performance"), 0, 100, (0, 100), 5, key="f_perf")
+        fit_rng = st.slider(t("filter_fitness"), 0, 100, (0, 100), 5, key="f_fit")
+        career_rng = st.slider(t("filter_career_win"), 0, 100, (0, 100), 5, key="f_career")
+        st.button(t("filter_clear"),
                   on_click=lambda: st.session_state.update(_clear_filters=True))
 
     # Build a combined mask on the sport-scoped pool.
@@ -547,13 +571,15 @@ with st.sidebar:
 
     player_names = filtered["Name"].tolist()
     if player_names:
-        player_choice = st.selectbox("👤 Player", player_names, index=0)
+        player_choice = st.selectbox(t("filter_player"), player_names, index=0)
     else:
-        st.selectbox("👤 Player", ["(no athletes match filters)"], index=0)
+        st.selectbox(t("filter_player"),
+                    ["(কোনো অ্যাথলিট মেলেনি)" if is_bangla() else "(no athletes match filters)"],
+                    index=0)
         player_choice = None
 
     st.caption(
-        f"{len(filtered)} of {len(pool)} athlete(s) in scope"
+        t("filter_scope_caption", n=len(filtered), total=len(pool))
         + ("" if sport_choice == "All Sports" else f" · {sport_choice}")
     )
     st.divider()
@@ -624,28 +650,29 @@ def page_summary():
     coaches = get_coaches(str(DATA_PATH))
     nk = _ds.get_notun_kuri()
 
-    st.markdown("<div class='section-title'>Executive briefing — national programme</div>",
+    st.markdown(f"<div class='section-title'>{t('page_summary_title')}</div>",
                 unsafe_allow_html=True)
-    st.caption("A single-page synthesis of the whole system: grassroots pipeline, "
-               "elite pool, performance, coverage and readiness.")
+    st.caption(t('page_summary_sub'))
 
     # ---- Outcome KPIs spanning the entire platform ----
     injured = df["injury_status"].isin(["Actively Managed", "Monitored / Restricted"])
     c1, c2, c3, c4, c5 = st.columns(5)
-    kpi(c1, "Grassroots pipeline", f"{nk['totals']['registered']:,}",
-        "Notun Kuri registered")
-    kpi(c2, "Elite athletes", f"{len(df):,}", f"{df['Sport'].nunique()} sports", cls="green")
-    kpi(c3, "Coaches & staff", f"{len(coaches):,}", "national + divisional", cls="green")
-    kpi(c4, "Avg performance", f"{df['overall_score'].mean():.0f}", "0–100 model score", cls="gold")
-    kpi(c5, "Match-ready", f"{(~injured).mean()*100:.0f}%",
-        f"{int(injured.sum())} on injury watch", cls="gold")
+    kpi(c1, t("kpi_grassroots"), f"{nk['totals']['registered']:,}",
+        t("kpi_registered"))
+    kpi(c2, t("kpi_elite"), f"{len(df):,}",
+        f"{df['Sport'].nunique()} " + ("খেলা" if is_bangla() else "sports"), cls="green")
+    kpi(c3, t("kpi_coaches"), f"{len(coaches):,}",
+        "জাতীয় + বিভাগীয়" if is_bangla() else "national + divisional", cls="green")
+    kpi(c4, t("kpi_avg_perf"), f"{df['overall_score'].mean():.0f}", t("kpi_model_score"), cls="gold")
+    kpi(c5, t("kpi_match_ready"), f"{(~injured).mean()*100:.0f}%",
+        f"{int(injured.sum())} " + t("kpi_on_watch"), cls="gold")
 
     st.write("")
     left, right = st.columns([1, 1])
 
     # ---- Talent pipeline funnel (ties grassroots to elite) ----
     with left:
-        st.markdown("<div class='section-title'>Talent pipeline — grassroots to elite</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Talent pipeline — grassroots to elite')}</div>",
                     unsafe_allow_html=True)
         stages = nk["stages"][:4] + [("Elite athlete pool", len(df))]
         fig = go.Figure(go.Funnel(
@@ -657,7 +684,7 @@ def page_summary():
 
     # ---- Top performers nationwide (cross-sport) ----
     with right:
-        st.markdown("<div class='section-title'>Top performers nationwide</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Top performers nationwide')}</div>",
                     unsafe_allow_html=True)
         top = df.nlargest(8, "overall_score")[["Name", "Sport", "overall_score", "division"]]
         tfig = px.bar(top.sort_values("overall_score"), x="overall_score", y="Name",
@@ -673,7 +700,7 @@ def page_summary():
     # ---- Coverage + readiness row ----
     l2, r2 = st.columns([1, 1])
     with l2:
-        st.markdown("<div class='section-title'>Elite athletes by sport</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Elite athletes by sport')}</div>",
                     unsafe_allow_html=True)
         counts = df["Sport"].value_counts().rename_axis("Sport").reset_index(name="Athletes")
         fig = px.bar(counts, x="Athletes", y="Sport", orientation="h",
@@ -683,7 +710,7 @@ def page_summary():
         fig.update_traces(textposition="outside")
         st.plotly_chart(fig, width='stretch')
     with r2:
-        st.markdown("<div class='section-title'>Squad readiness</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='section-title'>{_stt('Squad readiness')}</div>", unsafe_allow_html=True)
         status = df["injury_status"].value_counts().rename_axis("Status").reset_index(name="Count")
         fig = px.pie(status, names="Status", values="Count", hole=0.58,
                      color="Status", color_discrete_map=STATUS_COLORS)
@@ -692,7 +719,7 @@ def page_summary():
         st.plotly_chart(fig, width='stretch')
 
     # ---- Auto-generated key insights (synthesizes the system) ----
-    st.markdown("<div class='section-title'>Key insights</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='section-title'>{_stt('Key insights')}</div>", unsafe_allow_html=True)
     best_sport = df.groupby("Sport")["overall_score"].mean().idxmax()
     top_div = df["division"].value_counts().idxmax()
     girls_pct = nk["totals"]["girls"] / nk["totals"]["registered"] * 100
@@ -732,6 +759,8 @@ def page_profile():
 
     top = st.columns([2.3, 1, 1])
     with top[0]:
+        club_label = "ক্লাব / দল:" if is_bangla() else "Club / Team:"
+        form_label = "সাম্প্রতিক ফর্ম:" if is_bangla() else "Recent form:"
         st.markdown(
             f"<div class='profile'><div style='display:flex;gap:16px;align-items:center'>"
             f"<div class='avatar'>{initials(a['Name'])}</div>"
@@ -741,24 +770,29 @@ def page_profile():
             f"<span class='chip green'>{a['tier_label']}</span>"
             f"<span class='chip gold'>ID {a['ID']}</span></div></div></div>"
             f"<div style='margin-top:12px;color:{MUTED};font-size:.9rem'>"
-            f"<b>Club / Team:</b> {a.get('Team/Club','—')}</div>"
+            f"<b>{club_label}</b> {a.get('Team/Club','—')}</div>"
             f"<div style='margin-top:6px;color:{INK};font-size:.9rem'>"
-            f"<b>Recent form:</b> {a.get('Recent Stats','—')}</div></div>",
+            f"<b>{form_label}</b> {gt(a.get('Recent Stats','—'))}</div></div>",
             unsafe_allow_html=True,
         )
     with top[1]:
+        rank_in_label = f"{a['Sport']} এ র‍্যাঙ্ক" if is_bangla() else f"Rank in {a['Sport']}"
+        of_label = f"{int(a['sport_size'])} জনের মধ্যে" if is_bangla() else f"of {int(a['sport_size'])}"
         st.markdown(
-            f"<div class='rankbadge'><div class='l'>Rank in {a['Sport']}</div>"
+            f"<div class='rankbadge'><div class='l'>{rank_in_label}</div>"
             f"<div class='r'>#{int(a['sport_rank'])}</div>"
-            f"<div class='l'>of {int(a['sport_size'])}</div></div>",
+            f"<div class='l'>{of_label}</div></div>",
             unsafe_allow_html=True,
         )
     with top[2]:
+        pctl_label = "পার্সেন্টাইল" if is_bangla() else "Percentile"
+        overall_label = (f"সার্বিক স্কোর {a['overall_score']:.1f}" if is_bangla()
+                         else f"overall score {a['overall_score']:.1f}")
         st.markdown(
             f"<div class='rankbadge' style='background:linear-gradient(135deg,{GREEN},{NAVY})'>"
-            f"<div class='l'>Percentile</div>"
+            f"<div class='l'>{pctl_label}</div>"
             f"<div class='r'>{a['sport_percentile']:.0f}</div>"
-            f"<div class='l'>overall score {a['overall_score']:.1f}</div></div>",
+            f"<div class='l'>{overall_label}</div></div>",
             unsafe_allow_html=True,
         )
 
@@ -767,39 +801,40 @@ def page_profile():
     # ===================== ATHLETE 360 PROFILE (tabbed) ===================== #
     # Existing Overview is preserved as the first tab; new sections added after.
     import dataset as _ds
-    tabs = st.tabs([
-        "📋 Overview", "👤 Personal", "🏆 Career", "📈 Performance",
-        "💪 Fitness & Training", "🩺 Health & Coach", "🤖 AI Insights",
-        "⚖️ Compare", "⬇️ Export",
-    ])
+    tabs = st.tabs([t("tab_overview"), t("tab_personal"), t("tab_career"),
+                    t("tab_performance"), t("tab_fitness_training"),
+                    t("tab_health_coach"), t("tab_ai_insights"),
+                    t("tab_compare"), t("tab_export")])
 
     # ---- TAB 1: Overview (unchanged existing content) --------------------- #
     with tabs[0]:
         c1, c2 = st.columns([1, 1.15])
         with c1:
-            st.markdown("<div class='section-title'>Biometrics &amp; vitals</div>",
+            st.markdown(f"<div class='section-title'>{_stt('Biometrics &amp; vitals')}</div>",
                         unsafe_allow_html=True)
+            _yrs = "বছর" if is_bangla() else "yrs"
             rows = [
-                ("Age", f"{a['age']:.0f} yrs"),
-                ("Height", f"{a['height_cm']:.0f} cm"),
-                ("Weight", f"{a['weight_kg']:.0f} kg"),
-                ("VO₂ Max", f"{a['vo2max']:.0f} mL/kg/min"),
-                ("Resting HR", f"{a['resting_hr']:.0f} BPM"),
-                ("Body Fat", f"{a['body_fat']:.1f}%"),
-                ("Daily Intake", f"{a['intake_kcal']:,.0f} kcal"),
-                ("Daily Burn", f"{a['burn_kcal']:,.0f} kcal"),
-                ("Energy Balance", f"{a['energy_balance']:+,.0f} kcal"),
+                (t("metric_age"), f"{a['age']:.0f} {_yrs}"),
+                (t("metric_height"), f"{a['height_cm']:.0f} cm"),
+                (t("metric_weight"), f"{a['weight_kg']:.0f} kg"),
+                (t("metric_vo2"), f"{a['vo2max']:.0f} mL/kg/min"),
+                (t("metric_resting_hr"), f"{a['resting_hr']:.0f} BPM"),
+                (t("metric_body_fat"), f"{a['body_fat']:.1f}%"),
+                (t("metric_intake"), f"{a['intake_kcal']:,.0f} kcal"),
+                (t("metric_burn"), f"{a['burn_kcal']:,.0f} kcal"),
+                (t("metric_energy_balance"), f"{a['energy_balance']:+,.0f} kcal"),
             ]
             html = "".join(
                 f"<div class='metric-row'><span class='k'>{k}</span>"
                 f"<span class='v'>{v}</span></div>" for k, v in rows
             )
             status_color = STATUS_COLORS.get(a["injury_status"], MUTED)
-            html += (f"<div class='metric-row'><span class='k'>Injury status</span>"
+            html += (f"<div class='metric-row'><span class='k'>{t('metric_injury_status')}</span>"
                      f"<span class='v' style='color:{status_color}'>"
-                     f"● {a['injury_status']}</span></div>")
+                     f"● {ts(a['injury_status'])}</span></div>")
             st.markdown(f"<div class='profile'>{html}</div>", unsafe_allow_html=True)
-            st.caption(f"Injury note: {a.get('Injury History','—')}")
+            _injury_note_label = "ইনজুরি নোট:" if is_bangla() else "Injury note:"
+            st.caption(f"{_injury_note_label} {gt(a.get('Injury History','—'))}")
 
         with c2:
             st.markdown("<div class='section-title'>Component breakdown "
@@ -830,7 +865,7 @@ def page_profile():
 
     # ---- TAB 2: Personal Information -------------------------------------- #
     with tabs[1]:
-        st.markdown("<div class='section-title'>Personal information</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Personal information')}</div>",
                     unsafe_allow_html=True)
         src = str(a.get("data_source", ""))
         if "real-name" in src:
@@ -876,7 +911,7 @@ def page_profile():
                         f"</div>", unsafe_allow_html=True)
             st.write("")
 
-        st.markdown("<div class='section-title'>Career summary</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Career summary')}</div>",
                     unsafe_allow_html=True)
         k1, k2, k3, k4 = st.columns(4)
         kpi(k1, "Matches", f"{int(a.get('career_matches',0)):,}")
@@ -896,7 +931,7 @@ def page_profile():
 
         cta, ctb = st.columns(2)
         with cta:
-            st.markdown("<div class='section-title'>Career timeline</div>",
+            st.markdown(f"<div class='section-title'>{_stt('Career timeline')}</div>",
                         unsafe_allow_html=True)
             tl = a.get("career_timeline") or []
             if isinstance(tl, list) and tl:
@@ -906,7 +941,7 @@ def page_profile():
             else:
                 st.caption("No timeline available.")
         with ctb:
-            st.markdown("<div class='section-title'>National &amp; international results</div>",
+            st.markdown(f"<div class='section-title'>{_stt('National &amp; international results')}</div>",
                         unsafe_allow_html=True)
             nat = a.get("national_results") or []
             intl = a.get("international_results") or []
@@ -919,18 +954,18 @@ def page_profile():
             else:
                 st.caption("No results recorded.")
 
-        st.markdown("<div class='section-title'>Achievements &amp; highlights</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Achievements &amp; highlights')}</div>",
                     unsafe_allow_html=True)
         hl = a.get("career_highlights") or []
         if isinstance(hl, list) and hl:
-            st.markdown("".join(f"<span class='chip gold'>🏅 {h}</span>" for h in hl),
+            st.markdown("".join(f"<span class='chip gold'>🏅 {gt(h)}</span>" for h in hl),
                         unsafe_allow_html=True)
         else:
-            st.caption("No highlights recorded.")
+            st.caption("কোনো কৃতিত্ব রেকর্ড করা হয়নি।" if is_bangla() else "No highlights recorded.")
 
     # ---- TAB 4: Performance trends + ranking details ---------------------- #
     with tabs[3]:
-        st.markdown("<div class='section-title'>Career progress trend</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Career progress trend')}</div>",
                     unsafe_allow_html=True)
         prog = a.get("career_progress") or []
         if isinstance(prog, list) and prog:
@@ -944,7 +979,7 @@ def page_profile():
 
         sc = a.get("season_stats") or []
         if isinstance(sc, list) and sc:
-            st.markdown("<div class='section-title'>Season-by-season</div>",
+            st.markdown(f"<div class='section-title'>{_stt('Season-by-season')}</div>",
                         unsafe_allow_html=True)
             sdf = pd.DataFrame(sc)
             fig = px.bar(sdf, x="season", y=["wins", "losses"], barmode="stack",
@@ -954,7 +989,7 @@ def page_profile():
                               legend=dict(orientation="h", y=1.15))
             st.plotly_chart(fig, width='stretch')
 
-        st.markdown("<div class='section-title'>Ranking details</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Ranking details')}</div>",
                     unsafe_allow_html=True)
         r1, r2, r3 = st.columns(3)
         kpi(r1, f"Rank in {a['Sport']}", f"#{int(a['sport_rank'])}",
@@ -967,7 +1002,7 @@ def page_profile():
 
     # ---- TAB 5: Fitness history + training attendance --------------------- #
     with tabs[4]:
-        st.markdown("<div class='section-title'>Fitness profile</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Fitness profile')}</div>",
                     unsafe_allow_html=True)
         f1, f2, f3, f4 = st.columns(4)
         kpi(f1, "Fitness rating", f"{int(a.get('fitness_rating',0))}", "0–100", cls="green")
@@ -975,7 +1010,7 @@ def page_profile():
         kpi(f3, "Resting HR", f"{a['resting_hr']:.0f}", "BPM", cls="green")
         kpi(f4, "Body Fat", f"{a['body_fat']:.1f}%", "")
 
-        st.markdown("<div class='section-title'>Training attendance</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Training attendance')}</div>",
                     unsafe_allow_html=True)
         att = float(a.get("training_attendance", 0))
         gfig = go.Figure(go.Indicator(
@@ -995,19 +1030,22 @@ def page_profile():
 
     # ---- TAB 6: Injury history + coach feedback --------------------------- #
     with tabs[5]:
-        st.markdown("<div class='section-title'>Injury &amp; availability</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Injury &amp; availability')}</div>",
                     unsafe_allow_html=True)
         sc_color = STATUS_COLORS.get(a["injury_status"], MUTED)
+        _cur_status_lbl = "বর্তমান অবস্থা" if is_bangla() else "Current status"
+        _avail_idx_lbl = "প্রাপ্যতা সূচক" if is_bangla() else "Availability index"
+        _hist_note_lbl = "ইতিহাস নোট" if is_bangla() else "History note"
         st.markdown(f"<div class='profile'>"
-                    f"<div class='metric-row'><span class='k'>Current status</span>"
-                    f"<span class='v' style='color:{sc_color}'>● {a['injury_status']}</span></div>"
-                    f"<div class='metric-row'><span class='k'>Availability index</span>"
+                    f"<div class='metric-row'><span class='k'>{_cur_status_lbl}</span>"
+                    f"<span class='v' style='color:{sc_color}'>● {ts(a['injury_status'])}</span></div>"
+                    f"<div class='metric-row'><span class='k'>{_avail_idx_lbl}</span>"
                     f"<span class='v'>{a.get('health_score',0):.0f}/100</span></div>"
-                    f"<div class='metric-row'><span class='k'>History note</span>"
-                    f"<span class='v'>{a.get('Injury History','—')}</span></div></div>",
+                    f"<div class='metric-row'><span class='k'>{_hist_note_lbl}</span>"
+                    f"<span class='v'>{gt(a.get('Injury History','—'))}</span></div></div>",
                     unsafe_allow_html=True)
 
-        st.markdown("<div class='section-title'>Coach feedback</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Coach feedback')}</div>",
                     unsafe_allow_html=True)
         # Divisional coach for this athlete's sport+division (from coach DB).
         coaches = get_coaches(str(DATA_PATH))
@@ -1015,14 +1053,16 @@ def page_profile():
                         (coaches["division"] == a.get("division"))]
         if not match.empty:
             c = match.iloc[0]
-            fb = _coach_feedback(a)
+            fb = gt(_coach_feedback(a))
+            _division_word = "বিভাগ" if is_bangla() else "Division"
+            _yrs_exp = "বছরের অভিজ্ঞতা" if is_bangla() else "yrs exp"
             st.markdown(
                 f"<div class='profile'><div style='display:flex;gap:14px;align-items:center'>"
                 f"<div class='avatar'>{initials(c['name'])}</div>"
                 f"<div><div class='pname' style='font-size:1.05rem'>{c['name']}</div>"
-                f"<div class='prole'>{c['specialization']} · {c['division']} Division</div>"
-                f"<div><span class='chip navy'>{c['license']}</span>"
-                f"<span class='chip green'>{c['experience_years']} yrs exp</span></div>"
+                f"<div class='prole'>{gt(c['specialization'])} · {c['division']} {_division_word}</div>"
+                f"<div><span class='chip navy'>{gt(c['license'])}</span>"
+                f"<span class='chip green'>{c['experience_years']} {_yrs_exp}</span></div>"
                 f"</div></div><div style='margin-top:12px;color:{INK};font-size:.92rem'>"
                 f"“{fb}”</div></div>", unsafe_allow_html=True)
         else:
@@ -1030,24 +1070,31 @@ def page_profile():
 
     # ---- TAB 7: AI Insights (recommendation engine) ----------------------- #
     with tabs[6]:
-        rec = _ds.generate_recommendations(a)
-        st.markdown("<div class='section-title'>AI performance insight "
-                    "<span style='font-size:.7rem;color:#5a6b7b'>(rule-based analytics)</span>"
+        rec = _ds.generate_recommendations_bn(a) if is_bangla() else _ds.generate_recommendations(a)
+        _ai_title = "এআই পারফরম্যান্স পরামর্শ" if is_bangla() else "AI performance insight"
+        _ai_sub = "(নিয়মভিত্তিক বিশ্লেষণ)" if is_bangla() else "(rule-based analytics)"
+        st.markdown(f"<div class='section-title'>{_ai_title} "
+                    f"<span style='font-size:.7rem;color:#5a6b7b'>{_ai_sub}</span>"
                     "</div>", unsafe_allow_html=True)
         sA, sB = st.columns(2)
         with sA:
-            st.markdown("**💪 Strengths**")
+            st.markdown(f"**💪 {'শক্তির ক্ষেত্র' if is_bangla() else 'Strengths'}**")
             st.markdown("".join(f"<span class='chip green'>{s}</span>" for s in rec["strengths"]),
                         unsafe_allow_html=True)
         with sB:
-            st.markdown("**🎯 Focus areas**")
+            st.markdown(f"**🎯 {'উন্নতির ক্ষেত্র' if is_bangla() else 'Focus areas'}**")
             st.markdown("".join(f"<span class='chip gold'>{w}</span>" for w in rec["weaknesses"]),
                         unsafe_allow_html=True)
 
         st.markdown(f"<div style='margin-top:8px'></div>", unsafe_allow_html=True)
-        recmap = [("🏃 Fitness", rec["fitness"]), ("🏋️ Training", rec["training"]),
-                  ("🛌 Recovery", rec["recovery"]), ("🥗 Diet", rec["diet"]),
-                  ("🎽 Technical", rec["technical"]), ("🧠 Mental coaching", rec["mental"])]
+        if is_bangla():
+            recmap = [("🏃 ফিটনেস", rec["fitness"]), ("🏋️ প্রশিক্ষণ", rec["training"]),
+                     ("🛌 পুনরুদ্ধার", rec["recovery"]), ("🥗 খাদ্য", rec["diet"]),
+                     ("🎽 কারিগরি", rec["technical"]), ("🧠 মানসিক প্রশিক্ষণ", rec["mental"])]
+        else:
+            recmap = [("🏃 Fitness", rec["fitness"]), ("🏋️ Training", rec["training"]),
+                     ("🛌 Recovery", rec["recovery"]), ("🥗 Diet", rec["diet"]),
+                     ("🎽 Technical", rec["technical"]), ("🧠 Mental coaching", rec["mental"])]
         cc = st.columns(2)
         for i, (title, body) in enumerate(recmap):
             with cc[i % 2]:
@@ -1055,17 +1102,20 @@ def page_profile():
                             f"<b>{title}</b><div style='color:{MUTED};font-size:.9rem;"
                             f"margin-top:4px'>{body}</div></div>", unsafe_allow_html=True)
 
+        _exp_label = "প্রত্যাশিত উন্নতি" if is_bangla() else "Expected improvement"
         st.markdown(f"<div class='rankbadge' style='margin-top:6px'>"
-                    f"<div class='l'>Expected improvement</div>"
+                    f"<div class='l'>{_exp_label}</div>"
                     f"<div class='r'>{rec['current_overall']:.0f} → {rec['projected_overall']:.0f}</div>"
                     f"<div class='l'>{rec['expected_improvement']}</div></div>",
                     unsafe_allow_html=True)
-        st.caption("Recommendations are generated by a transparent rules engine "
-                   "from this athlete's own metrics — not a black-box model.")
+        st.caption("সুপারিশগুলো একটি স্বচ্ছ নিয়মভিত্তিক ইঞ্জিন দ্বারা এই অ্যাথলিটের নিজস্ব "
+                  "পরিসংখ্যান থেকে তৈরি — কোনো ব্ল্যাক-বক্স মডেল নয়।" if is_bangla() else
+                  "Recommendations are generated by a transparent rules engine "
+                  "from this athlete's own metrics — not a black-box model.")
 
     # ---- TAB 8: Compare player ------------------------------------------- #
     with tabs[7]:
-        st.markdown("<div class='section-title'>Compare with another athlete</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Compare with another athlete')}</div>",
                     unsafe_allow_html=True)
         same_sport = df[df["Sport"] == a["Sport"]]["Name"].tolist()
         others = [n for n in same_sport if n != a["Name"]]
@@ -1106,7 +1156,7 @@ def page_profile():
 
     # ---- TAB 9: Export profile ------------------------------------------- #
     with tabs[8]:
-        st.markdown("<div class='section-title'>Export this profile</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Export this profile')}</div>",
                     unsafe_allow_html=True)
         flat = {k: a.get(k) for k in [
             "ID", "Name", "Sport", "Position/Event", "gender", "age", "division",
@@ -1157,24 +1207,24 @@ def _coach_feedback(a) -> str:
 #  PAGE 3 — PERFORMANCE & FITNESS                                             #
 # =========================================================================== #
 def page_fitness():
-    scope_label = "all sports" if sport_choice == "All Sports" else sport_choice
-    st.markdown(f"<div class='section-title'>Fitness analytics — {scope_label}</div>",
+    scope_label = t("scope_all_sports") if sport_choice == "All Sports" else sport_choice
+    st.markdown(f"<div class='section-title'>{t('sec_fitness_analytics', scope=scope_label)}</div>",
                 unsafe_allow_html=True)
 
     c1, c2, c3, c4 = st.columns(4)
-    kpi(c1, "Avg VO₂ Max", f"{scoped['vo2max'].mean():.1f}", "mL/kg/min")
-    kpi(c2, "Avg Resting HR", f"{scoped['resting_hr'].mean():.0f}", "BPM", cls="green")
-    kpi(c3, "Avg Body Fat", f"{scoped['body_fat'].mean():.1f}%", "", cls="green")
-    kpi(c4, "Fittest (overall)",
+    kpi(c1, t("kpi_avg_vo2"), f"{scoped['vo2max'].mean():.1f}", "mL/kg/min")
+    kpi(c2, t("kpi_avg_resting_hr"), f"{scoped['resting_hr'].mean():.0f}", "BPM", cls="green")
+    kpi(c3, t("kpi_avg_bodyfat"), f"{scoped['body_fat'].mean():.1f}%", "", cls="green")
+    kpi(c4, t("kpi_fittest"),
         f"{scoped.loc[scoped['fitness_n'].idxmax(), 'Name'].split()[0]}"
         if len(scoped) else "—",
-        f"fitness index {scoped['fitness_n'].max():.0f}" if len(scoped) else "",
+        t("foot_fitness_index", v=f"{scoped['fitness_n'].max():.0f}") if len(scoped) else "",
         cls="gold")
 
     st.write("")
     l, r = st.columns(2)
     with l:
-        st.markdown("<div class='section-title'>VO₂ Max vs Body Fat</div>",
+        st.markdown(f"<div class='section-title'>{_stt('VO₂ Max vs Body Fat')}</div>",
                     unsafe_allow_html=True)
         fig = px.scatter(scoped, x="vo2max", y="body_fat", color="Sport",
                          size="overall_score", hover_name="Name",
@@ -1189,7 +1239,7 @@ def page_fitness():
         st.plotly_chart(fig, width='stretch')
 
     with r:
-        st.markdown("<div class='section-title'>VO₂ Max distribution</div>",
+        st.markdown(f"<div class='section-title'>{_stt('VO₂ Max distribution')}</div>",
                     unsafe_allow_html=True)
         if sport_choice == "All Sports":
             fig = px.box(df, x="Sport", y="vo2max", color="Sport",
@@ -1206,7 +1256,7 @@ def page_fitness():
                               bargap=0.05)
         st.plotly_chart(fig, width='stretch')
 
-    st.markdown("<div class='section-title'>Fitness component index by athlete</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Fitness component index by athlete')}</div>",
                 unsafe_allow_html=True)
     top_n = scoped.nlargest(min(15, len(scoped)), "fitness_n")
     fig = px.bar(top_n.sort_values("fitness_n"), x="fitness_n", y="Name",
@@ -1222,26 +1272,27 @@ def page_fitness():
 #  PAGE 4 — INJURY & TRAINING                                                 #
 # =========================================================================== #
 def page_injury():
-    scope_label = "all sports" if sport_choice == "All Sports" else sport_choice
-    st.markdown(f"<div class='section-title'>Injury &amp; training — {scope_label}</div>",
+    scope_label = t("scope_all_sports") if sport_choice == "All Sports" else sport_choice
+    _inj_title = "ইনজুরি ও প্রশিক্ষণ" if is_bangla() else "Injury &amp; training"
+    st.markdown(f"<div class='section-title'>{_inj_title} — {scope_label}</div>",
                 unsafe_allow_html=True)
 
     watch = scoped["injury_status"].isin(
         ["Actively Managed", "Monitored / Restricted"])
     c1, c2, c3, c4 = st.columns(4)
-    kpi(c1, "Fully Fit", f"{(scoped['injury_status']=='Fully Fit').sum()}",
-        f"{(scoped['injury_status']=='Fully Fit').mean()*100:.0f}% of scope")
-    kpi(c2, "On Injury Watch", f"{int(watch.sum())}",
-        "managed or restricted", cls="gold")
-    kpi(c3, "Avg Training Burn", f"{scoped['burn_kcal'].mean():,.0f}",
-        "kcal / day", cls="green")
-    kpi(c4, "Avg Availability", f"{scoped['health_score'].mean():.0f}",
-        "health index (0–100)", cls="green")
+    kpi(c1, t("kpi_fully_fit"), f"{(scoped['injury_status']=='Fully Fit').sum()}",
+        f"{(scoped['injury_status']=='Fully Fit').mean()*100:.0f}{t('foot_of_scope')}")
+    kpi(c2, t("kpi_on_watch_full"), f"{int(watch.sum())}",
+        t("foot_managed_restricted"), cls="gold")
+    kpi(c3, t("kpi_avg_burn"), f"{scoped['burn_kcal'].mean():,.0f}",
+        t("foot_kcal_day"), cls="green")
+    kpi(c4, t("kpi_avg_avail"), f"{scoped['health_score'].mean():.0f}",
+        t("foot_health_index"), cls="green")
 
     st.write("")
     l, r = st.columns([1, 1.2])
     with l:
-        st.markdown("<div class='section-title'>Availability breakdown</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Availability breakdown')}</div>",
                     unsafe_allow_html=True)
         status = (scoped["injury_status"].value_counts()
                   .rename_axis("Status").reset_index(name="Count"))
@@ -1253,7 +1304,7 @@ def page_injury():
         st.plotly_chart(fig, width='stretch')
 
     with r:
-        st.markdown("<div class='section-title'>Training load vs availability</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Training load vs availability')}</div>",
                     unsafe_allow_html=True)
         fig = px.scatter(scoped, x="burn_kcal", y="health_score",
                          color="injury_status", hover_name="Name",
@@ -1265,7 +1316,7 @@ def page_injury():
         st.plotly_chart(fig, width='stretch')
 
     # ---- Calorie intake vs burn (headline requirement) ----
-    st.markdown("<div class='section-title'>Calorie intake vs burn</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Calorie intake vs burn')}</div>",
                 unsafe_allow_html=True)
     if sport_choice == "All Sports":
         cal = (df.groupby("Sport")
@@ -1302,17 +1353,17 @@ def page_injury():
 #  PAGE 5 — RANKINGS & LEADERBOARD                                            #
 # =========================================================================== #
 def page_rankings():
-    st.markdown("<div class='section-title'>Within-sport ranking model</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Within-sport ranking model')}</div>",
                 unsafe_allow_html=True)
 
     # Live weight readout (driven by the model definition).
     _MC = scoring.MODEL_COMPONENTS
     wc = st.columns(len(_MC))
     for i, (col, (label, wkey, _)) in enumerate(zip(wc, _MC)):
-        kpi(col, label, f"{norm_w[wkey]*100:.0f}%", "current weight",
+        kpi(col, label, f"{norm_w[wkey]*100:.0f}%", t("foot_current_weight"),
             cls=["", "green", "gold"][i % 3])
 
-    with st.expander("📐 How the overall score is calculated", expanded=False):
+    with st.expander(t("exp_how_calculated"), expanded=False):
         signal = {
             "fitness": "VO₂ Max (+), Resting HR (−), Body Fat (−)",
             "career": "career win %, medals, national & international ranking",
@@ -1341,12 +1392,11 @@ sub-weights in `scoring.DEFAULT_FITNESS_WEIGHTS`.
 
     # Leaderboard respects the sidebar Sport filter and updates with weights.
     if sport_choice == "All Sports":
-        st.info("Showing the **top athlete of every sport**. "
-                "Pick a sport in the sidebar for its full leaderboard.")
+        st.info(t("info_top_of_sport"))
         board = (df.sort_values("sport_rank")
                  .groupby("Sport", as_index=False).head(1)
                  .sort_values("overall_score", ascending=False))
-        title = "Sport leaders"
+        title = t("sport_leaders")
     else:
         board = scoped.sort_values("sport_rank")
         title = f"{sport_choice} leaderboard"
@@ -1394,7 +1444,7 @@ sub-weights in `scoring.DEFAULT_FITNESS_WEIGHTS`.
     )
 
     # Visual: stacked weighted contribution for the visible board (top 12).
-    st.markdown("<div class='section-title'>Weighted score contribution</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Weighted score contribution')}</div>",
                 unsafe_allow_html=True)
     top = board.nlargest(min(12, len(board)), "overall_score").copy()
     palette = [NAVY, "#1667a8", GREEN, GREEN_LIGHT, GOLD, "#8a6d3b"]
@@ -1423,26 +1473,33 @@ sub-weights in `scoring.DEFAULT_FITNESS_WEIGHTS`.
 def page_notunkuri():
     import dataset as _ds
     nk = _ds.get_notun_kuri()
-    t = nk["totals"]
+    tot = nk["totals"]
 
     st.markdown(
         "<div class='gov-header' style='background:linear-gradient(120deg,"
         f"{GREEN} 0%, #14663a 60%, {NAVY} 130%)'>"
         "<div style='font-size:2.4rem'>🌱</div>"
-        "<div><h1>Notun Kuri — National Talent Pipeline</h1>"
-        "<div class='sub'>Grassroots talent hunt · Ages 12–14 · Ministry of Youth &amp; Sports</div>"
-        "<div class='flag'></div></div></div>", unsafe_allow_html=True)
+        f"<div><h1>{t('page_notunkuri_title')}</h1>"
+        f"<div class='sub'>"
+        + ("তৃণমূল প্রতিভা অনুসন্ধান · বয়স ১২–১৪ · যুব ও ক্রীড়া মন্ত্রণালয়" if is_bangla()
+           else "Grassroots talent hunt · Ages 12–14 · Ministry of Youth &amp; Sports")
+        + "</div><div class='flag'></div></div></div>", unsafe_allow_html=True)
 
-    st.info("📊 Figures are **illustrative demonstration data** modeled on the "
-            "programme's real published totals (160,779 registered). Per-division "
-            "and per-discipline breakdowns are for structural demonstration.")
+    st.info(
+        ("📊 কর্মসূচির প্রকৃত প্রকাশিত মোট সংখ্যার (১,৬০,৭৭৯ নিবন্ধিত) উপর ভিত্তি করে "
+         "**উদাহরণস্বরূপ প্রদর্শনী তথ্য**। বিভাগ ও বিষয়ভিত্তিক বিভাজন কাঠামোগত প্রদর্শনের জন্য।")
+        if is_bangla() else
+        ("📊 Figures are **illustrative demonstration data** modeled on the "
+         "programme's real published totals (160,779 registered). Per-division "
+         "and per-discipline breakdowns are for structural demonstration.")
+    )
 
     # Headline tiles.
     tiles = [
-        ("📝", f"{t['registered']:,}", "Registered (nationwide)", (GREEN, "#14663a")),
-        ("👦", f"{t['boys']:,}", "Boys", (NAVY, NAVY_DARK)),
-        ("👧", f"{t['girls']:,}", "Girls", ("#b0468a", "#7a2f60")),
-        ("🎯", f"{t['disciplines']}", "Disciplines", (GOLD, "#c98f2a")),
+        ("📝", f"{tot['registered']:,}", t("kpi_total_registered"), (GREEN, "#14663a")),
+        ("👦", f"{tot['boys']:,}", t("kpi_boys"), (NAVY, NAVY_DARK)),
+        ("👧", f"{tot['girls']:,}", t("kpi_girls"), ("#b0468a", "#7a2f60")),
+        ("🎯", f"{tot['disciplines']}", t("kpi_disciplines"), (GOLD, "#c98f2a")),
     ]
     cols = st.columns(4)
     for col, (icon, val, label, (c1, c2)) in zip(cols, tiles):
@@ -1459,7 +1516,7 @@ def page_notunkuri():
 
     # --- Talent funnel (the core story) ---
     with left:
-        st.markdown("<div class='section-title'>Talent pathway funnel</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Talent pathway funnel')}</div>",
                     unsafe_allow_html=True)
         stages = nk["stages"]
         fig = go.Figure(go.Funnel(
@@ -1475,21 +1532,28 @@ def page_notunkuri():
 
     # --- Gender split + discipline ---
     with right:
-        st.markdown("<div class='section-title'>Participation by gender</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Participation by gender')}</div>",
                     unsafe_allow_html=True)
-        gdf = pd.DataFrame({"Gender": ["Boys", "Girls"],
-                            "Count": [t["boys"], t["girls"]]})
+        _boys_lbl = "ছেলে" if is_bangla() else "Boys"
+        _girls_lbl = "মেয়ে" if is_bangla() else "Girls"
+        gdf = pd.DataFrame({"Gender": [_boys_lbl, _girls_lbl],
+                            "Count": [tot["boys"], tot["girls"]]})
         fig = px.pie(gdf, names="Gender", values="Count", hole=0.58,
                      color="Gender",
-                     color_discrete_map={"Boys": NAVY, "Girls": "#b0468a"})
+                     color_discrete_map={_boys_lbl: NAVY, _girls_lbl: "#b0468a"})
         fig.update_layout(height=250, margin=dict(l=0, r=0, t=6, b=0),
                           legend=dict(orientation="h", y=-0.1))
         st.plotly_chart(fig, width='stretch')
-        st.caption(f"{t['girls']/t['registered']*100:.0f}% girls — a measurable "
-                   "equity gap the programme can be steered to close.")
+        _equity_caption = (
+            f"{tot['girls']/tot['registered']*100:.0f}% মেয়ে — একটি পরিমাপযোগ্য "
+            "সমতার ব্যবধান যা কর্মসূচি দূর করতে পারে।"
+            if is_bangla() else
+            f"{tot['girls']/tot['registered']*100:.0f}% girls — a measurable "
+            "equity gap the programme can be steered to close.")
+        st.caption(_equity_caption)
 
     # --- By discipline ---
-    st.markdown("<div class='section-title'>Registrations by discipline</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Registrations by discipline')}</div>",
                 unsafe_allow_html=True)
     ddf = pd.DataFrame(nk["by_discipline"]).sort_values("participants")
     fig = px.bar(ddf, x="participants", y="sport", orientation="h",
@@ -1503,7 +1567,7 @@ def page_notunkuri():
     st.plotly_chart(fig, width='stretch')
 
     # --- By division: map + table ---
-    st.markdown("<div class='section-title'>Grassroots reach across Bangladesh</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Grassroots reach across Bangladesh')}</div>",
                 unsafe_allow_html=True)
     mcol, tcol = st.columns([1.1, 1])
     bydiv = pd.DataFrame(nk["by_division"])
@@ -1523,13 +1587,21 @@ def page_notunkuri():
             st.bar_chart(bydiv.set_index("division")["registered"])
     with tcol:
         disp = bydiv.copy()
+        _girls_pct_lbl = "মেয়ে %" if is_bangla() else "Girls %"
         disp["Girls %"] = (disp["girls"] / disp["registered"] * 100).round(0).astype(int).astype(str) + "%"
-        disp = disp.rename(columns={"division": "Division", "registered": "Registered",
-                                    "boys": "Boys", "girls": "Girls"})
-        st.dataframe(disp[["Division", "Registered", "Boys", "Girls", "Girls %"]],
-                     width='stretch', hide_index=True, height=340)
+        if is_bangla():
+            disp = disp.rename(columns={"division": "বিভাগ", "registered": "নিবন্ধিত",
+                                        "boys": "ছেলে", "girls": "মেয়ে",
+                                        "Girls %": _girls_pct_lbl})
+            st.dataframe(disp[["বিভাগ", "নিবন্ধিত", "ছেলে", "মেয়ে", _girls_pct_lbl]],
+                        width='stretch', hide_index=True, height=340)
+        else:
+            disp = disp.rename(columns={"division": "Division", "registered": "Registered",
+                                        "boys": "Boys", "girls": "Girls"})
+            st.dataframe(disp[["Division", "Registered", "Boys", "Girls", "Girls %"]],
+                        width='stretch', hide_index=True, height=340)
 
-    st.caption(t["source_note"])
+    st.caption(tot["source_note"])
 
 
 # --------------------------------------------------------------------------- #
@@ -1546,23 +1618,34 @@ def page_stipend():
     prog = _ds.get_stipend_program()
     stars, pay = prog["stars"], prog["payments"]
 
+    _flag_title = t("page_stipend_title")
+    _flag_sub = t("page_stipend_sub")
     st.markdown(
         "<div class='gov-header' style='background:linear-gradient(120deg,"
         f"{GOLD} 0%, #a97f2e 55%, {NAVY} 130%)'>"
         "<div style='font-size:2.4rem'>💳</div>"
-        "<div><h1>Notun Kuri Stipend Program</h1>"
-        "<div class='sub'>Monthly development allowance · Top 400 selected stars · "
-        "Ministry of Youth &amp; Sports</div>"
+        f"<div><h1>{_flag_title}</h1>"
+        f"<div class='sub'>{_flag_sub}</div>"
         "<div class='flag'></div></div></div>", unsafe_allow_html=True)
 
-    st.info(
-        f"💡 This is a **monitoring &amp; demonstration system** — figures are "
-        f"illustrative (placeholder stipend: **৳{_ds.STIPEND_AMOUNT:,}/month**, "
-        f"not a ministry-confirmed amount). No real payment is processed here. "
-        f"The **Process Payment** flow below demonstrates the intended workflow; "
-        f"real disbursement requires a licensed gateway integration "
-        f"(e.g. SSLCommerz) with the ministry's merchant credentials."
-    )
+    if is_bangla():
+        st.info(
+            f"💡 এটি একটি **পর্যবেক্ষণ ও প্রদর্শনী ব্যবস্থা** — পরিসংখ্যানগুলো "
+            f"উদাহরণস্বরূপ (নমুনা উপবৃত্তি: **৳{_ds.STIPEND_AMOUNT:,}/মাস**, "
+            f"মন্ত্রণালয় কর্তৃক নিশ্চিত পরিমাণ নয়)। এখানে কোনো প্রকৃত অর্থপ্রদান হয় না। "
+            f"নিচের **অর্থপ্রদান প্রক্রিয়া** কর্মপ্রবাহটি প্রদর্শন করে; "
+            f"প্রকৃত বিতরণের জন্য মন্ত্রণালয়ের মার্চেন্ট ক্রেডেনশিয়ালসহ একটি লাইসেন্সপ্রাপ্ত "
+            f"গেটওয়ে ইন্টিগ্রেশন প্রয়োজন (যেমন SSLCommerz)।"
+        )
+    else:
+        st.info(
+            f"💡 This is a **monitoring &amp; demonstration system** — figures are "
+            f"illustrative (placeholder stipend: **৳{_ds.STIPEND_AMOUNT:,}/month**, "
+            f"not a ministry-confirmed amount). No real payment is processed here. "
+            f"The **Process Payment** flow below demonstrates the intended workflow; "
+            f"real disbursement requires a licensed gateway integration "
+            f"(e.g. SSLCommerz) with the ministry's merchant credentials."
+        )
 
     # ---- Headline KPIs -----------------------------------------------------
     latest_month = pay["month"].max()
@@ -1575,10 +1658,10 @@ def page_stipend():
     active_stars = (stars["status"] == "Active").sum()
 
     tiles = [
-        ("⭐", f"{len(stars):,}", "Selected stars", (NAVY, NAVY_DARK)),
-        ("✅", f"{active_stars:,}", "Active this month", (GREEN, "#14663a")),
-        ("💰", f"৳{paid_this_month['amount'].sum():,.0f}", "Disbursed this month", (GOLD, "#a97f2e")),
-        ("📊", f"৳{total_disbursed_all_time:,.0f}", "Total disbursed (all-time)", (NAVY, GREEN)),
+        ("⭐", f"{len(stars):,}", t("kpi_selected_stars"), (NAVY, NAVY_DARK)),
+        ("✅", f"{active_stars:,}", t("kpi_active_month"), (GREEN, "#14663a")),
+        ("💰", f"৳{paid_this_month['amount'].sum():,.0f}", t("kpi_disbursed_month"), (GOLD, "#a97f2e")),
+        ("📊", f"৳{total_disbursed_all_time:,.0f}", t("kpi_disbursed_total"), (NAVY, GREEN)),
     ]
     cols = st.columns(4)
     for col, (icon, val, label, (c1, c2)) in zip(cols, tiles):
@@ -1591,27 +1674,32 @@ def page_stipend():
 
     st.write("")
     c1, c2, c3, c4 = st.columns(4)
-    kpi(c1, "Paid this month", f"{len(paid_this_month)}",
-        f"of {len(this_month)} due", cls="green")
-    kpi(c2, "Pending", f"{pending_n}", "awaiting confirmation", cls="gold")
-    kpi(c3, "Failed", f"{failed_n}", "needs retry", cls="")
-    kpi(c4, "On hold", f"{held_n}", "enrollment paused", cls="")
+    _of_due = f"{len(this_month)} " + ("বাকি আছে" if is_bangla() else "due")
+    kpi(c1, t("kpi_paid_month"), f"{len(paid_this_month)}", f"{'মোট ' if is_bangla() else 'of '}{_of_due}", cls="green")
+    kpi(c2, t("kpi_pending"), f"{pending_n}",
+        "নিশ্চিতকরণের অপেক্ষায়" if is_bangla() else "awaiting confirmation", cls="gold")
+    kpi(c3, t("kpi_failed"), f"{failed_n}",
+        "পুনরায় চেষ্টা প্রয়োজন" if is_bangla() else "needs retry", cls="")
+    kpi(c4, t("kpi_on_hold"), f"{held_n}",
+        "নিবন্ধন স্থগিত" if is_bangla() else "enrollment paused", cls="")
 
     st.write("")
     left, right = st.columns([1.2, 1])
     with left:
-        st.markdown("<div class='section-title'>Monthly disbursement trend</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Monthly disbursement trend')}</div>",
                     unsafe_allow_html=True)
         trend = (pay[pay["status"] == "Paid"].groupby("month")["amount"]
                 .sum().reset_index())
+        _disb_label = "বিতরণকৃত (টাকা)" if is_bangla() else "Disbursed (BDT)"
         fig = px.bar(trend, x="month", y="amount", text="amount",
-                     labels={"month": "", "amount": "Disbursed (BDT)"})
+                     labels={"month": "", "amount": _disb_label})
         fig.update_traces(marker_color=GOLD, texttemplate="৳%{text:,.0f}",
                           textposition="outside")
         fig.update_layout(height=340, margin=dict(l=0, r=0, t=6, b=0))
         st.plotly_chart(fig, width='stretch')
     with right:
-        st.markdown("<div class='section-title'>This month's status</div>",
+        _tms = _stt("This month's status")
+        st.markdown(f"<div class='section-title'>{_tms}</div>",
                     unsafe_allow_html=True)
         status_counts = (this_month["status"].value_counts()
                         .rename_axis("Status").reset_index(name="Count"))
@@ -1623,7 +1711,7 @@ def page_stipend():
 
     l2, r2 = st.columns(2)
     with l2:
-        st.markdown("<div class='section-title'>Stars by division</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Stars by division')}</div>",
                     unsafe_allow_html=True)
         by_div = (stars["division"].value_counts()
                  .rename_axis("Division").reset_index(name="Stars")
@@ -1634,7 +1722,7 @@ def page_stipend():
                           coloraxis_showscale=False)
         st.plotly_chart(fig, width='stretch')
     with r2:
-        st.markdown("<div class='section-title'>Stars by disbursement method</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Stars by disbursement method')}</div>",
                     unsafe_allow_html=True)
         by_method = (stars["disbursement_method"].value_counts()
                     .rename_axis("Method").reset_index(name="Stars"))
@@ -1645,15 +1733,21 @@ def page_stipend():
         st.plotly_chart(fig, width='stretch')
 
     # ---- Payment register ---------------------------------------------------
-    st.markdown("<div class='section-title'>Payment register — this month</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Payment register — this month')}</div>",
                 unsafe_allow_html=True)
     q1, q2, q3 = st.columns([1.6, 1, 1])
-    search = q1.text_input("🔍 Search star", placeholder="name, ID, division…",
+    search = q1.text_input(t("search_star"), placeholder=("নাম, আইডি, বিভাগ…" if is_bangla() else "name, ID, division…"),
                            key="stipend_search")
-    status_sel = q2.multiselect("Status", ["Paid", "Pending", "Failed", "Held"],
+    status_sel = q2.multiselect(t("col_status"),
+                                [t("status_paid"), t("status_pending"), t("kpi_failed"), t("status_held")],
                                 key="stipend_status")
-    div_sel = q3.multiselect("Division", sorted(stars["division"].unique()),
+    div_sel = q3.multiselect(t("col_division"), sorted(stars["division"].unique()),
                              key="stipend_div")
+
+    # Map translated status picks back to the internal English values.
+    _status_bn_to_en = {t("status_paid"): "Paid", t("status_pending"): "Pending",
+                        t("kpi_failed"): "Failed", t("status_held"): "Held"}
+    status_sel = [_status_bn_to_en.get(s, s) for s in status_sel]
 
     reg = this_month.merge(stars[["star_id", "name", "division", "sport",
                                   "disbursement_method"]], on="star_id", how="left")
@@ -1667,7 +1761,9 @@ def page_stipend():
     if div_sel:
         reg = reg[reg["division"].isin(div_sel)]
 
-    st.caption(f"{len(reg):,} of {len(this_month):,} stars shown")
+    _shown_caption = (f"{len(this_month):,} জনের মধ্যে {len(reg):,} জন তারকা দেখানো হচ্ছে"
+                      if is_bangla() else f"{len(reg):,} of {len(this_month):,} stars shown")
+    st.caption(_shown_caption)
     disp = reg[["star_id", "name", "division", "sport", "amount", "method",
                "status", "payment_date", "transaction_ref"]].copy()
     disp["payment_date"] = pd.to_datetime(disp["payment_date"]).dt.strftime("%d %b %Y")
@@ -1686,10 +1782,20 @@ def page_stipend():
     styled = (disp.style
               .apply(_status_tone, axis=1)
               .format({"Amount (BDT)": "৳{:,.0f}"}))
-    st.dataframe(styled, width='stretch', height=min(480, 70 + 35 * len(disp)),
-                 hide_index=True)
+    if is_bangla():
+        col_cfg = {
+            "Star ID": "তারকা আইডি", "Name": "নাম", "Division": "বিভাগ",
+            "Sport": "খেলা", "Amount (BDT)": "পরিমাণ (৳)", "Method": "পদ্ধতি",
+            "Status": "অবস্থা", "Paid On": "পরিশোধের তারিখ", "Transaction Ref": "লেনদেন নম্বর",
+        }
+        st.dataframe(styled, width='stretch', height=min(480, 70 + 35 * len(disp)),
+                    hide_index=True, column_config={k: st.column_config.Column(v)
+                                                    for k, v in col_cfg.items()})
+    else:
+        st.dataframe(styled, width='stretch', height=min(480, 70 + 35 * len(disp)),
+                     hide_index=True)
     st.download_button(
-        "⬇️ Download this register (CSV)",
+        "⬇️ নিবন্ধন ডাউনলোড করুন (CSV)" if is_bangla() else "⬇️ Download this register (CSV)",
         disp.to_csv(index=False).encode("utf-8"),
         file_name=f"stipend_register_{pd.Timestamp(latest_month).strftime('%Y_%m')}.csv",
         mime="text/csv",
@@ -1697,62 +1803,112 @@ def page_stipend():
 
     # ---- Process Payment demonstration flow ---------------------------------
     st.write("")
-    st.markdown("<div class='section-title'>Process payment "
-               "<span style='font-size:.7rem;color:#5a6b7b'>"
-               "(demonstration workflow)</span></div>", unsafe_allow_html=True)
+    _pp_title = "অর্থপ্রদান প্রক্রিয়া" if is_bangla() else "Process payment"
+    _pp_sub = "(প্রদর্শনী কর্মপ্রবাহ)" if is_bangla() else "(demonstration workflow)"
+    st.markdown(f"<div class='section-title'>{_pp_title} "
+               f"<span style='font-size:.7rem;color:#5a6b7b'>"
+               f"{_pp_sub}</span></div>", unsafe_allow_html=True)
     unpaid = this_month[this_month["status"].isin(["Pending", "Failed"])].merge(
         stars[["star_id", "name", "division"]], on="star_id", how="left")
 
     if unpaid.empty:
-        st.success("✅ All stars are paid for this cycle. No action needed.")
+        st.success("✅ এই চক্রের জন্য সকল তারকার অর্থপ্রদান সম্পন্ন। কোনো পদক্ষেপ প্রয়োজন নেই।"
+                   if is_bangla() else
+                   "✅ All stars are paid for this cycle. No action needed.")
     else:
         options = (unpaid["name"] + "  ·  " + unpaid["star_id"]
                   + "  ·  " + unpaid["division"]).tolist()
-        pick = st.selectbox(f"Select a star to process ({len(unpaid)} awaiting payment)",
-                            options, key="stipend_process_pick")
+        _select_label = (f"প্রক্রিয়াকরণের জন্য একটি তারকা নির্বাচন করুন ({len(unpaid)} জন অর্থপ্রদানের অপেক্ষায়)"
+                         if is_bangla() else
+                         f"Select a star to process ({len(unpaid)} awaiting payment)")
+        pick = st.selectbox(_select_label, options, key="stipend_process_pick")
         picked_id = pick.split("·")[1].strip()
         picked_row = unpaid[unpaid["star_id"] == picked_id].iloc[0]
+        _status_display = t({"Pending": "status_pending", "Failed": "kpi_failed"}
+                            .get(picked_row["status"], "status_pending"))
 
         pc1, pc2 = st.columns([1, 1.4])
         with pc1:
-            st.markdown(
-                f"<div class='profile'>"
-                f"<div class='metric-row'><span class='k'>Star</span>"
-                f"<span class='v'>{picked_row['name']}</span></div>"
-                f"<div class='metric-row'><span class='k'>Division</span>"
-                f"<span class='v'>{picked_row['division']}</span></div>"
-                f"<div class='metric-row'><span class='k'>Amount</span>"
-                f"<span class='v'>৳{picked_row['amount']:,.0f}</span></div>"
-                f"<div class='metric-row'><span class='k'>Method</span>"
-                f"<span class='v'>{picked_row['method']}</span></div>"
-                f"<div class='metric-row'><span class='k'>Current status</span>"
-                f"<span class='v' style='color:{STIPEND_STATUS_COLORS.get(picked_row['status'], MUTED)}'>"
-                f"● {picked_row['status']}</span></div></div>",
-                unsafe_allow_html=True)
+            if is_bangla():
+                st.markdown(
+                    f"<div class='profile'>"
+                    f"<div class='metric-row'><span class='k'>তারকা</span>"
+                    f"<span class='v'>{picked_row['name']}</span></div>"
+                    f"<div class='metric-row'><span class='k'>বিভাগ</span>"
+                    f"<span class='v'>{picked_row['division']}</span></div>"
+                    f"<div class='metric-row'><span class='k'>পরিমাণ</span>"
+                    f"<span class='v'>৳{picked_row['amount']:,.0f}</span></div>"
+                    f"<div class='metric-row'><span class='k'>পদ্ধতি</span>"
+                    f"<span class='v'>{picked_row['method']}</span></div>"
+                    f"<div class='metric-row'><span class='k'>বর্তমান অবস্থা</span>"
+                    f"<span class='v' style='color:{STIPEND_STATUS_COLORS.get(picked_row['status'], MUTED)}'>"
+                    f"● {_status_display}</span></div></div>",
+                    unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    f"<div class='profile'>"
+                    f"<div class='metric-row'><span class='k'>Star</span>"
+                    f"<span class='v'>{picked_row['name']}</span></div>"
+                    f"<div class='metric-row'><span class='k'>Division</span>"
+                    f"<span class='v'>{picked_row['division']}</span></div>"
+                    f"<div class='metric-row'><span class='k'>Amount</span>"
+                    f"<span class='v'>৳{picked_row['amount']:,.0f}</span></div>"
+                    f"<div class='metric-row'><span class='k'>Method</span>"
+                    f"<span class='v'>{picked_row['method']}</span></div>"
+                    f"<div class='metric-row'><span class='k'>Current status</span>"
+                    f"<span class='v' style='color:{STIPEND_STATUS_COLORS.get(picked_row['status'], MUTED)}'>"
+                    f"● {picked_row['status']}</span></div></div>",
+                    unsafe_allow_html=True)
         with pc2:
-            st.markdown(
-                f"<div class='profile'>"
-                f"<div style='font-weight:700;color:{NAVY};margin-bottom:8px'>"
-                f"Gateway integration point</div>"
-                f"<div style='color:{MUTED};font-size:.9rem;line-height:1.5'>"
-                f"This button demonstrates where a real payment gateway "
-                f"(e.g. <b>SSLCommerz</b>) would be called with the ministry's "
-                f"merchant credentials to disburse via {picked_row['method']}. "
-                f"No real transaction occurs in this demonstration.</div></div>",
-                unsafe_allow_html=True)
-            if st.button(f"🔒 Simulate disbursement — ৳{picked_row['amount']:,.0f}",
-                        key="stipend_simulate_btn", type="primary"):
-                st.success(
-                    f"✅ Demonstration complete: ৳{picked_row['amount']:,.0f} would be "
-                    f"sent to {picked_row['name']} via {picked_row['method']} "
-                    f"pending live gateway integration."
-                )
-                st.caption("No real funds were moved. This confirms the intended "
-                          "user flow for ministry review.")
+            if is_bangla():
+                st.markdown(
+                    f"<div class='profile'>"
+                    f"<div style='font-weight:700;color:{NAVY};margin-bottom:8px'>"
+                    f"গেটওয়ে ইন্টিগ্রেশন পয়েন্ট</div>"
+                    f"<div style='color:{MUTED};font-size:.9rem;line-height:1.5'>"
+                    f"এই বাটনটি প্রদর্শন করে যে কোথায় একটি প্রকৃত পেমেন্ট গেটওয়ে "
+                    f"(যেমন <b>SSLCommerz</b>) মন্ত্রণালয়ের মার্চেন্ট ক্রেডেনশিয়ালসহ "
+                    f"{picked_row['method']} এর মাধ্যমে বিতরণ করতে ব্যবহৃত হবে। "
+                    f"এই প্রদর্শনীতে কোনো প্রকৃত লেনদেন সংঘটিত হয় না।</div></div>",
+                    unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    f"<div class='profile'>"
+                    f"<div style='font-weight:700;color:{NAVY};margin-bottom:8px'>"
+                    f"Gateway integration point</div>"
+                    f"<div style='color:{MUTED};font-size:.9rem;line-height:1.5'>"
+                    f"This button demonstrates where a real payment gateway "
+                    f"(e.g. <b>SSLCommerz</b>) would be called with the ministry's "
+                    f"merchant credentials to disburse via {picked_row['method']}. "
+                    f"No real transaction occurs in this demonstration.</div></div>",
+                    unsafe_allow_html=True)
+            _sim_label = t("simulate_disbursement", amount=f"{picked_row['amount']:,.0f}")
+            if st.button(_sim_label, key="stipend_simulate_btn", type="primary"):
+                if is_bangla():
+                    st.success(
+                        f"✅ প্রদর্শনী সম্পন্ন: ৳{picked_row['amount']:,.0f} "
+                        f"{picked_row['method']} এর মাধ্যমে {picked_row['name']} কে "
+                        f"পাঠানো হবে, লাইভ গেটওয়ে ইন্টিগ্রেশন সাপেক্ষে।"
+                    )
+                    st.caption("কোনো প্রকৃত অর্থ স্থানান্তরিত হয়নি। এটি মন্ত্রণালয়ের পর্যালোচনার "
+                              "জন্য উদ্দেশ্যকৃত ব্যবহারকারী প্রবাহ নিশ্চিত করে।")
+                else:
+                    st.success(
+                        f"✅ Demonstration complete: ৳{picked_row['amount']:,.0f} would be "
+                        f"sent to {picked_row['name']} via {picked_row['method']} "
+                        f"pending live gateway integration."
+                    )
+                    st.caption("No real funds were moved. This confirms the intended "
+                              "user flow for ministry review.")
 
-    st.caption("All stars, guardians, and payment details on this page are "
-              "synthetic demonstration data. No real minors' financial "
-              "information is used or displayed.")
+    st.caption(
+        "এই পৃষ্ঠার সকল তারকা, অভিভাবক এবং অর্থপ্রদানের তথ্য কৃত্রিম প্রদর্শনী তথ্য। "
+        "কোনো প্রকৃত নাবালকের আর্থিক তথ্য ব্যবহার বা প্রদর্শন করা হয় না।"
+        if is_bangla() else
+        "All stars, guardians, and payment details on this page are "
+        "synthetic demonstration data. No real minors' financial "
+        "information is used or displayed."
+    )
 
 
 @st.cache_data(show_spinner=False)
@@ -1812,7 +1968,7 @@ def page_glance():
 
     # --- Sunburst: Division -> Sport ---
     with right:
-        st.markdown("<div class='section-title'>Division → Sport composition</div>",
+        st.markdown(f"<div class='section-title'>{_stt('Division → Sport composition')}</div>",
                     unsafe_allow_html=True)
         sb = df.groupby(["division", "Sport"]).size().reset_index(name="n")
         fig = px.sunburst(sb, path=["division", "Sport"], values="n",
@@ -1821,7 +1977,7 @@ def page_glance():
         st.plotly_chart(fig, width='stretch')
 
     # --- Treemap: Sport -> Tier ---
-    st.markdown("<div class='section-title'>Talent pool by sport &amp; grade</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Talent pool by sport &amp; grade')}</div>",
                 unsafe_allow_html=True)
     tm = df.groupby(["Sport", "tier_label"]).size().reset_index(name="n")
     fig = px.treemap(tm, path=[px.Constant("All Sports"), "Sport", "tier_label"],
@@ -1840,17 +1996,22 @@ def page_coaches():
     import dataset as _ds
     DIVISIONS_LIST = _ds.DIVISIONS
     coaches = get_coaches(str(DATA_PATH))
-    st.markdown("<div class='section-title'>Coach Directory</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Coach Directory')}</div>",
                 unsafe_allow_html=True)
-    st.caption("10 coaches per sport (National Head + Assistant + 8 divisional). "
-               "Verified national coaches are labelled; divisional profiles are "
-               "illustrative where public records are unavailable.")
+    _coach_caption = (
+        "প্রতি খেলায় ১০ জন কোচ (জাতীয় প্রধান + সহকারী + ৮ বিভাগীয়)। যাচাইকৃত জাতীয় "
+        "কোচদের চিহ্নিত করা হয়েছে; পাবলিক রেকর্ড অনুপলব্ধ ক্ষেত্রে বিভাগীয় প্রোফাইল উদাহরণস্বরূপ।"
+        if is_bangla() else
+        "10 coaches per sport (National Head + Assistant + 8 divisional). "
+        "Verified national coaches are labelled; divisional profiles are "
+        "illustrative where public records are unavailable.")
+    st.caption(_coach_caption)
 
     f1, f2, f3 = st.columns([1.4, 1, 1])
-    coach_search = f1.text_input("🔍 Coach search", placeholder="name, specialization…",
+    coach_search = f1.text_input(t("coach_search"), placeholder=t("coach_search_placeholder"),
                                  key="coach_search")
-    sport_sel = f2.multiselect("Sport", sorted(coaches["sport"].unique()), key="coach_sport")
-    div_sel = f3.multiselect("Division", ["National"] + DIVISIONS_LIST, key="coach_div")
+    sport_sel = f2.multiselect(t("col_sport"), sorted(coaches["sport"].unique()), key="coach_sport")
+    div_sel = f3.multiselect(t("filter_division"), ["National"] + DIVISIONS_LIST, key="coach_div")
 
     view = coaches.copy()
     if coach_search:
@@ -1863,9 +2024,10 @@ def page_coaches():
     if div_sel:
         view = view[view["division"].isin(div_sel)]
 
-    st.caption(f"{len(view)} coach(es)")
+    _n_coaches_lbl = f"{len(view)} " + ("জন কোচ" if is_bangla() else "coach(es)")
+    st.caption(_n_coaches_lbl)
     if view.empty:
-        st.info("No coaches match the filters.")
+        st.info("ফিল্টারের সাথে কোনো কোচ মেলেনি।" if is_bangla() else "No coaches match the filters.")
         return
 
     # National coaches first, then divisional.
@@ -1877,7 +2039,7 @@ def page_coaches():
         verified = c.get("data_source") == "verified"
         badge = ("<span style='background:%s;color:#fff;font-size:.66rem;font-weight:700;"
                  "padding:2px 8px;border-radius:999px'>%s</span>" % (
-                     (GREEN, "✓ VERIFIED") if verified else (MUTED, "ILLUSTRATIVE")))
+                     (GREEN, t("coach_verified")) if verified else (MUTED, t("coach_illustrative"))))
         if verified:
             # Real person: show only verified facts, no fabricated stats/details.
             card = (
@@ -1888,21 +2050,31 @@ def page_coaches():
                 f"<div class='prole'>{c['role']} · {c['sport']}</div>"
                 f"<div style='margin-top:3px'>{badge}</div></div></div>"
                 f"<div style='margin-top:10px'>"
-                f"<div class='metric-row'><span class='k'>Role</span>"
+                f"<div class='metric-row'><span class='k'>{'ভূমিকা' if is_bangla() else 'Role'}</span>"
                 f"<span class='v'>{c['role']}</span></div>"
-                f"<div class='metric-row'><span class='k'>Sport</span>"
+                f"<div class='metric-row'><span class='k'>{t('col_sport')}</span>"
                 f"<span class='v'>{c['sport']}</span></div>"
-                f"<div class='metric-row'><span class='k'>Profile</span>"
-                f"<span class='v'>Maintained by national federation</span></div>"
+                f"<div class='metric-row'><span class='k'>{'প্রোফাইল' if is_bangla() else 'Profile'}</span>"
+                f"<span class='v'>{'জাতীয় ফেডারেশন দ্বারা রক্ষণাবেক্ষিত' if is_bangla() else 'Maintained by national federation'}</span></div>"
                 f"</div>"
                 f"<div style='margin-top:10px;color:{MUTED};font-size:.82rem'>"
-                f"Verified appointment. Detailed personnel data not held in this "
-                f"demonstration system.</div></div>"
+                + ("যাচাইকৃত নিয়োগ। এই প্রদর্শনী ব্যবস্থায় বিস্তারিত ব্যক্তিগত তথ্য নেই।"
+                   if is_bangla() else
+                   "Verified appointment. Detailed personnel data not held in this "
+                   "demonstration system.") + "</div></div>"
             )
         else:
-            certs = " ".join(f"<span class='chip navy'>{x}</span>" for x in (c.get("certificates") or [])[:3])
-            achs = "".join(f"<div style='color:{MUTED};font-size:.85rem'>• {x}</div>"
+            certs = " ".join(f"<span class='chip navy'>{gt(x)}</span>" for x in (c.get("certificates") or [])[:3])
+            achs = "".join(f"<div style='color:{MUTED};font-size:.85rem'>• {gt(x)}</div>"
                            for x in (c.get("achievements") or [])[:2])
+            _yrs_word = "বছর" if is_bangla() else "yrs"
+            _rating_word = "রেটিং" if is_bangla() else "Rating"
+            _spec_lbl = "বিশেষত্ব" if is_bangla() else "Specialization"
+            _lic_lbl = "লাইসেন্স" if is_bangla() else "License"
+            _edu_lbl = "শিক্ষাগত যোগ্যতা" if is_bangla() else "Education"
+            _cur_ath_lbl = "বর্তমান অ্যাথলিট" if is_bangla() else "Current athletes"
+            _contact_lbl = "যোগাযোগ" if is_bangla() else "Contact"
+            _achievements_lbl = "অর্জন" if is_bangla() else "Achievements"
             card = (
                 f"<div class='profile' style='margin-bottom:14px'>"
                 f"<div style='display:flex;gap:14px;align-items:center'>"
@@ -1910,16 +2082,16 @@ def page_coaches():
                 f"<div style='flex:1'><div class='pname' style='font-size:1.1rem'>{c['name']}</div>"
                 f"<div class='prole'>{c['role']} · {c['sport']}</div>"
                 f"<div style='margin-top:3px'>{badge}"
-                f"<span class='chip green'>{c['experience_years']} yrs</span>"
-                f"<span class='chip gold'>Rating {c['performance_rating']}</span></div></div></div>"
+                f"<span class='chip green'>{c['experience_years']} {_yrs_word}</span>"
+                f"<span class='chip gold'>{_rating_word} {c['performance_rating']}</span></div></div></div>"
                 f"<div style='margin-top:10px'>{certs}</div>"
                 f"<div style='margin-top:8px'>"
-                f"<div class='metric-row'><span class='k'>Specialization</span><span class='v'>{c['specialization']}</span></div>"
-                f"<div class='metric-row'><span class='k'>License</span><span class='v'>{c['license']}</span></div>"
-                f"<div class='metric-row'><span class='k'>Education</span><span class='v'>{c['education']}</span></div>"
-                f"<div class='metric-row'><span class='k'>Current athletes</span><span class='v'>{c['current_athletes']}</span></div>"
-                f"<div class='metric-row'><span class='k'>Contact</span><span class='v'>{c['email']}</span></div>"
-                f"</div><div style='margin-top:8px'><b style='color:{NAVY};font-size:.85rem'>Achievements</b>{achs}</div>"
+                f"<div class='metric-row'><span class='k'>{_spec_lbl}</span><span class='v'>{gt(c['specialization'])}</span></div>"
+                f"<div class='metric-row'><span class='k'>{_lic_lbl}</span><span class='v'>{gt(c['license'])}</span></div>"
+                f"<div class='metric-row'><span class='k'>{_edu_lbl}</span><span class='v'>{c['education']}</span></div>"
+                f"<div class='metric-row'><span class='k'>{_cur_ath_lbl}</span><span class='v'>{c['current_athletes']}</span></div>"
+                f"<div class='metric-row'><span class='k'>{_contact_lbl}</span><span class='v'>{c['email']}</span></div>"
+                f"</div><div style='margin-top:8px'><b style='color:{NAVY};font-size:.85rem'>{_achievements_lbl}</b>{achs}</div>"
                 f"</div>"
             )
         cols[i % 2].markdown(card, unsafe_allow_html=True)
@@ -1930,7 +2102,7 @@ def page_coaches():
 # --------------------------------------------------------------------------- #
 def page_rules():
     import dataset as _ds
-    st.markdown("<div class='section-title'>Sport Rule Books</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Sport Rule Books')}</div>",
                 unsafe_allow_html=True)
     st.caption("Official governing body and rulebook link for each sport. "
                "Key rules are brief orientation summaries; the official link is "
@@ -1939,10 +2111,11 @@ def page_rules():
     all_sports = sorted(_ds.RULEBOOK.keys())
     # Default to the sidebar-selected sport when one is chosen.
     default_idx = all_sports.index(sport_choice) if sport_choice in all_sports else 0
-    sport = st.selectbox("Choose a sport", all_sports, index=default_idx)
+    sport = st.selectbox(t("choose_sport"), all_sports, index=default_idx)
     rb = _ds.get_rulebook(sport)
     if not rb:
-        st.info("No rulebook on record for this sport.")
+        st.info("এই খেলার জন্য কোনো নিয়মাবলী রেকর্ডে নেই।" if is_bangla()
+               else "No rulebook on record for this sport.")
         return
 
     rules_html = "".join(
@@ -1958,11 +2131,12 @@ def page_rules():
         f"<div><div class='pname'>{sport}</div>"
         f"<div class='prole'>{rb['body']}</div></div></div>"
         f"<div style='margin-top:10px;color:{MUTED};font-size:.95rem'>{rb['summary']}</div>"
-        f"<div class='section-title' style='margin-top:16px'>Key rules</div>{rules_html}"
+        f"<div class='section-title' style='margin-top:16px'>{t('key_rules')}</div>{rules_html}"
         f"</div>", unsafe_allow_html=True)
 
-    st.link_button(f"📘 Open the official {sport} rulebook", rb["url"])
-    st.caption(f"Source: {rb['body']} — {rb['url']}")
+    st.link_button(t("open_official", sport=sport), rb["url"])
+    _source_lbl = "উৎস" if is_bangla() else "Source"
+    st.caption(f"{_source_lbl}: {rb['body']} — {rb['url']}")
 
 
 # --------------------------------------------------------------------------- #
@@ -1970,17 +2144,22 @@ def page_rules():
 # --------------------------------------------------------------------------- #
 def page_news():
     import dataset as _ds
-    st.markdown("<div class='section-title'>Sports News Center</div>",
+    st.markdown(f"<div class='section-title'>{_stt('Sports News Center')}</div>",
                 unsafe_allow_html=True)
-    st.caption("Headlines sourced from Prothom Alo. Each card summarises a real, "
-               "published article with its source and date; nothing is fabricated.")
+    _news_caption = (
+        "প্রথম আলো থেকে সংগৃহীত শিরোনাম। প্রতিটি কার্ড একটি প্রকৃত, প্রকাশিত নিবন্ধের "
+        "সংক্ষিপ্তসার, উৎস ও তারিখসহ; কিছুই বানানো হয়নি।"
+        if is_bangla() else
+        "Headlines sourced from Prothom Alo. Each card summarises a real, "
+        "published article with its source and date; nothing is fabricated.")
+    st.caption(_news_caption)
 
     news = _ds.get_news()
     cats = sorted({n["category"] for n in news})
     prios = ["High", "Medium", "Low"]
     fc, fp = st.columns(2)
-    cat_sel = fc.multiselect("Filter by category", cats, key="news_cat")
-    pri_sel = fp.multiselect("Filter by priority", prios, key="news_pri")
+    cat_sel = fc.multiselect(t("filter_category"), cats, key="news_cat")
+    pri_sel = fp.multiselect(t("filter_priority"), prios, key="news_pri")
     if cat_sel:
         news = [n for n in news if n["category"] in cat_sel]
     if pri_sel:
@@ -1993,7 +2172,8 @@ def page_news():
         "Football": (NAVY, GREEN), "Other": (MUTED, INK),
     }
     if not news:
-        st.info("No news matches the selected filters.")
+        st.info("নির্বাচিত ফিল্টারের সাথে কোনো সংবাদ মেলেনি।" if is_bangla()
+               else "No news matches the selected filters.")
         return
 
     # Two-column responsive card grid.

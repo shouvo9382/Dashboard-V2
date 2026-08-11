@@ -1336,3 +1336,145 @@ def get_stipend_program() -> dict:
     stars = generate_stipend_stars()
     payments = generate_stipend_payments(stars)
     return {"stars": stars, "payments": payments}
+
+
+# --------------------------------------------------------------------------- #
+#  4b) AI RECOMMENDATION ENGINE — BANGLA VERSION                               #
+#  A separate function, not a modification of generate_recommendations(), so
+#  the original (tested, live) English function is never touched. Mirrors the
+#  exact same thresholds/logic — only the message text differs.
+# --------------------------------------------------------------------------- #
+_COMPONENT_LABELS_BN = {
+    "fitness_n": "ফিটনেস", "career_n": "ক্যারিয়ার", "nutrition_n": "পুষ্টি",
+    "attendance_n": "উপস্থিতি", "medical_n": "প্রাপ্যতা", "coach_n": "কোচ মূল্যায়ন",
+}
+
+
+def generate_recommendations_bn(a) -> dict:
+    """Bangla mirror of generate_recommendations() — identical thresholds."""
+    def g(k, default=0.0):
+        v = a.get(k, default)
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return default
+
+    comps = {k: g(k) for k in _COMPONENT_LABELS_BN}
+    ranked = sorted(comps.items(), key=lambda kv: kv[1], reverse=True)
+    strengths = [f"{_COMPONENT_LABELS_BN[k]} ({v:.0f}/100)" for k, v in ranked[:2] if v >= 55]
+    weaknesses = [f"{_COMPONENT_LABELS_BN[k]} ({v:.0f}/100)" for k, v in ranked[::-1][:2] if v < 60]
+    if not strengths:
+        strengths = [f"{_COMPONENT_LABELS_BN[ranked[0][0]]} ({ranked[0][1]:.0f}/100)"]
+
+    fitness_n = g("fitness_n"); health_n = g("medical_n"); training_n = g("training_n")
+    nutrition_n = g("nutrition_n")
+    vo2 = g("vo2max"); rhr = g("resting_hr"); bf = g("body_fat")
+    eb = g("energy_balance"); attend = g("training_attendance", 85)
+    status = str(a.get("injury_status", ""))
+    sport = str(a.get("Sport", "")); event = str(a.get("Position/Event", ""))
+
+    # --- Fitness ---
+    if fitness_n < 45 or vo2 < 50:
+        fitness = (f"অ্যারোবিক ভিত্তি অগ্রাধিকার। VO₂ ম্যাক্স ~{vo2:.0f} থেকে বাড়াতে "
+                   "সপ্তাহে ২-৩টি জোন-২ সেশন (৩০-৪৫ মিনিট) যোগ করুন; ৮ সপ্তাহ পর পুনঃমূল্যায়ন করুন।")
+    elif rhr >= 58:
+        fitness = (f"বিশ্রামকালীন হৃদস্পন্দন ({rhr:.0f} বিপিএম) পুনরুদ্ধারের সুযোগ নির্দেশ করে। "
+                   "স্টেডি-স্টেট কার্ডিও যোগ করুন এবং সকালের হৃদস্পন্দনের নিম্নমুখী প্রবণতা পর্যবেক্ষণ করুন।")
+    else:
+        fitness = ("ফিটনেস ভিত্তি দৃঢ়। অ্যারোবিক সক্ষমতাকে মাঠের পুনরাবৃত্তিমূলক সক্ষমতায় রূপান্তরিত "
+                   "করতে খেলাভিত্তিক ইন্টারভাল কাজে মনোনিবেশ করুন।")
+
+    # --- Training ---
+    if training_n < 45:
+        training = ("প্রশিক্ষণ লোড সমকক্ষদের তুলনায় কম। পর্যায়ক্রমিক ব্লকসহ সাপ্তাহিক ভলিউম ~১০% "
+                    "বাড়ান; একবারে বড় লাফ এড়িয়ে চলুন।")
+    elif attend < 80:
+        training = (f"উপস্থিতি ({attend:.0f}%) অভিযোজন সীমিত করছে। তীব্রতা বাড়ানোর আগে "
+                    "সেশনের ধারাবাহিকতা দৃঢ় করুন।")
+    else:
+        training = ("লোড ও উপস্থিতি সুস্থ। উন্নতি সুসংহত করতে এবং অতিরিক্ত ব্যবহারের ঝুঁকি কমাতে "
+                    "প্রতি ৪র্থ সপ্তাহে একটি ডিলোড যোগ করুন।")
+
+    # --- Recovery ---
+    if status in ("Monitored / Restricted", "Actively Managed") or health_n < 50:
+        recovery = ("প্রাপ্যতা এখানে সীমাবদ্ধকারী বিষয়। ফিজিও-নেতৃত্বাধীন পুনর্বাসনকে অগ্রাধিকার দিন, "
+                    "উচ্চ-প্রভাবশালী ভলিউম সীমিত করুন, এবং লোড বৃদ্ধির আগে খেলায় ফেরার শর্ত নিশ্চিত করুন।")
+    elif rhr >= 58:
+        recovery = ("কাঠামোগত পুনরুদ্ধার যোগ করুন: ৮+ ঘণ্টা ঘুম, নমনীয়তা অনুশীলন, এবং একটি সম্পূর্ণ "
+                    "বিশ্রামের দিন; অভিযোজন নিশ্চিত করতে HRV/বিশ্রামকালীন-হৃদস্পন্দন পর্যবেক্ষণ করুন।")
+    else:
+        recovery = ("পুনরুদ্ধারের অবস্থা ভালো। বর্তমান কম ইনজুরি ঝুঁকি রক্ষা করতে ঘুমের অভ্যাস ও "
+                    "নিয়মিত সফট-টিস্যু কাজ বজায় রাখুন।")
+
+    # --- Diet ---
+    if bf >= 15:
+        diet = (f"শরীরের চর্বি ({bf:.1f}%) প্রতিযোগিতামূলক পরিসীমার উপরে। পেশী ভর রক্ষা করতে "
+                "১.৮-২.২ গ্রাম/কেজি প্রোটিনসহ ৩০০-৪০০ ক্যালরি সামান্য ঘাটতি প্রয়োগ করুন।")
+    elif eb < -100:
+        diet = (f"শক্তির ভারসাম্য ঋণাত্মক ({eb:+.0f} ক্যালরি)। প্রশিক্ষণের চাহিদা মেটাতে এবং "
+                "পুনরুদ্ধার ও রোগ প্রতিরোধ ক্ষমতা রক্ষা করতে গ্রহণ বাড়ান।")
+    elif nutrition_n < 50:
+        diet = ("খাদ্যগ্রহণের সময় নির্ধারণে উন্নতি প্রয়োজন। সেশনের চারপাশে কার্বোহাইড্রেট কেন্দ্রীভূত করুন এবং "
+                "প্রশিক্ষণের পর ৩০ মিনিটের মধ্যে একটি রিকভারি শেক (৩:১ কার্ব:প্রোটিন) যোগ করুন।")
+    else:
+        diet = ("পুষ্টি লোডের সাথে ভালোভাবে মিলিত। বর্তমান খাদ্যগ্রহণ বজায় রাখুন এবং ভারী সেশনের সময় "
+                "শরীরের ওজন হ্রাস অনুযায়ী পানি পান করুন।")
+
+    # --- Technical (sport/position aware) ---
+    tech_map_bn = {
+        "Badminton": "নেট-কিল নির্ভুলতা ও রিয়ার-কোর্ট স্ম্যাশ ধারাবাহিকতা তীক্ষ্ণ করুন; মাল্টি-শাটল ড্রিল যোগ করুন।",
+        "Table Tennis": "থার্ড-বল আক্রমণ ও ব্যাকহ্যান্ড-ব্লক পরিবর্তন অনুশীলন করুন; সার্ভ-ভ্যারিয়েশন সেট যোগ করুন।",
+        "Kabaddi": "রেইড ফুটওয়ার্ক ও এস্কেপ টাইমিং পরিমার্জন করুন; ডিফেন্সে সুপার-ট্যাকল সমন্বয় গড়ে তুলুন।",
+        "Martial Arts": "গার্ড-টু-কাউন্টার টাইমিং ও স্কোরিং-জোন নির্ভুলতা দৃঢ় করুন; প্রতিক্রিয়া ড্রিল যোগ করুন।",
+        "Cricket": "পরিস্থিতিগত নেট অনুশীলন — ক্লান্তির মধ্যে ম্যাচ-পরিস্থিতি ব্যাটিং/বোলিং।",
+        "Football": "অবস্থানভিত্তিক সিদ্ধান্ত গ্রহণ ড্রিল ও পুনরাবৃত্তিমূলক-স্প্রিন্ট ফিনিশিং।",
+        "Athletics": "ভিডিও ফিডব্যাকসহ ইভেন্ট-নির্দিষ্ট কারিগরি মডেল পরিমার্জন।",
+        "Swimming": "স্প্লিট টাইম কমাতে স্ট্রোক-দক্ষতা ও টার্ন/আন্ডারওয়াটার কাজ।",
+        "Chess": "সময়ের চাপে ওপেনিং-রিপার্টোয়ার গভীরতা ও এন্ডগেম রূপান্তর।",
+        "Volleyball": "সার্ভ-রিসিভ প্ল্যাটফর্ম নিয়ন্ত্রণ ও আক্রমণ-অ্যাপ্রোচ টাইমিং।",
+    }
+    technical = tech_map_bn.get(sport, "ভিডিও-ভিত্তিক ফিডব্যাকসহ মূল খেলাভিত্তিক দক্ষতা পরিমার্জন করুন।")
+    if event and sport in ("Badminton", "Table Tennis", "Martial Arts", "Kabaddi"):
+        technical = f"({event}) " + technical
+
+    # --- Mental coaching ---
+    seasons = a.get("season_stats") or []
+    ratings = [s.get("rating", 0) for s in seasons] if isinstance(seasons, list) else []
+    variance = (max(ratings) - min(ratings)) if len(ratings) >= 2 else 0
+    pct = g("sport_percentile", 50)
+    if variance >= 20:
+        mental = ("মৌসুম অনুযায়ী পারফরম্যান্স অসামঞ্জস্যপূর্ণ। ফলাফল স্থিতিশীল করতে রুটিন গঠন ও "
+                  "প্রতিযোগিতা-পূর্ব দৃশ্যায়ন যোগ করুন।")
+    elif pct >= 80:
+        mental = ("এলিট অবস্থান চাপ নিয়ে আসে। শীর্ষ-পার্সেন্টাইল ফলাফল বজায় রাখতে প্রক্রিয়া লক্ষ্য ও "
+                  "নিয়ন্ত্রিত উত্তেজনায় মনোনিবেশ করুন।")
+    else:
+        mental = ("উচ্চতর স্তরের প্রতিযোগিতায় ক্রমান্বয়ে অংশগ্রহণ ও কাঠামোগত ম্যাচ-পরবর্তী প্রতিফলনের "
+                  "মাধ্যমে প্রতিযোগিতামূলক আত্মবিশ্বাস গড়ে তুলুন।")
+
+    # --- Expected improvement ---
+    from scoring import DEFAULT_WEIGHTS
+    wmap = {"fitness_n": "fitness", "career_n": "career", "nutrition_n": "nutrition",
+            "attendance_n": "attendance", "medical_n": "medical", "coach_n": "coach"}
+    uplift = 0.0
+    for k, v in ranked[::-1][:2]:
+        target = max(v, 65.0)
+        uplift += (target - v) * DEFAULT_WEIGHTS[wmap[k]]
+    cur = g("overall_score", 0.0)
+    proj = min(100.0, cur + uplift)
+    expected = (f"দুর্বলতম দুটি ক্ষেত্র উন্নত করলে একটি প্রশিক্ষণ ব্লকে সার্বিক স্কোর "
+                f"{cur:.0f} থেকে ≈{proj:.0f} (+{proj - cur:.0f}) পর্যন্ত বাড়তে পারে।")
+
+    return {
+        "strengths": strengths,
+        "weaknesses": weaknesses or ["সমকক্ষদের তুলনায় কোনো দুর্বল উপাদান নেই — সার্বিকভাবে বজায় রাখুন।"],
+        "fitness": fitness,
+        "training": training,
+        "recovery": recovery,
+        "diet": diet,
+        "technical": technical,
+        "mental": mental,
+        "expected_improvement": expected,
+        "projected_overall": round(proj, 1),
+        "current_overall": round(cur, 1),
+    }
