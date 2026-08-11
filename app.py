@@ -95,10 +95,15 @@ CSS = f"""
   --radius:18px;
 }}
 
-/* ---------- Global reset of Streamlit chrome ---------- */
-#MainMenu, header[data-testid="stHeader"], footer {{ display:none !important; }}
-[data-testid="stToolbar"] {{ display:none !important; }}
-[data-testid="stDecoration"] {{ display:none !important; }}
+/* ---------- Global reset of Streamlit chrome (minimal, safe subset only) ----------
+   We ONLY hide elements that are never structurally load-bearing for the
+   sidebar: the hamburger menu and the footer. We deliberately do NOT hide
+   header[data-testid="stHeader"], stToolbar, or stDecoration — the sidebar's
+   show/hide arrow ([data-testid="collapsedControl"]) lives inside that header,
+   and display:none on an ancestor removes descendants from rendering with no
+   way to override from a child rule. Hiding the header fully means that once
+   a user collapses the sidebar, there is no way to bring it back. ---- */
+#MainMenu, footer {{ display:none !important; }}
 .stApp {{ background:
   radial-gradient(1200px 600px at 100% -5%, #e3edf9 0%, transparent 55%),
   radial-gradient(900px 500px at -10% 10%, #e8f5ee 0%, transparent 45%),
