@@ -46,10 +46,33 @@ LANG_KEY = "app_lang"   # "en" or "bn"
 # --------------------------------------------------------------------------- #
 BANGLA_FONT_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&display=swap');
-[lang="bn"], .bn-text, .stApp * {
+
+/* Apply the Bangla-capable font broadly via normal CSS inheritance (setting
+   it on .stApp, NOT with a `*` wildcard) -- text elements inherit it
+   automatically. A `*` selector was tried initially but had to be reverted:
+   it force-applied to every element with equal specificity to Streamlit's
+   own icon-font rules, and since our CSS loads after Streamlit's, it won
+   ties on cascade order -- breaking icon glyphs (e.g. the sidebar's
+   collapse/reopen arrow rendered as literal text instead of the arrow icon).
+   Plain inheritance avoids that: an element with its OWN font-family rule
+   (icons, svg) keeps it; only genuine text inherits the Bangla font. */
+.stApp {
   font-family: 'Noto Sans Bengali', 'Inter', 'Plus Jakarta Sans', sans-serif;
 }
+
+/* Explicit safety net: guarantee icon-bearing controls are never affected,
+   regardless of any other rule ordering. */
+[data-testid="collapsedControl"],
+[data-testid="collapsedControl"] *,
+[data-testid="stIconMaterial"],
+[data-testid="baseButton-headerNoPadding"],
+.stApp svg,
+.stApp [class*="material-symbols"],
+.stApp [class*="material-icons"] {
+  font-family: initial !important;
+}
 """
+
 
 
 def current_lang() -> str:
