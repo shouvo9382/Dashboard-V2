@@ -222,37 +222,36 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
 .gov-header {{
   position:relative; overflow:hidden; aspect-ratio:3/1; min-height:220px;
   background:linear-gradient(115deg, var(--navy) 0%, var(--navy2) 50%, #0a3b46 120%);
-  border-radius:22px; padding:22px 30px; margin:0 0 22px;
-  display:flex; align-items:center; gap:20px; color:#fff;
+  border-radius:22px; margin:0 0 22px; color:#fff;
+  display:grid; /* every direct child stacks in the same single cell below */
   box-shadow:0 18px 50px rgba(11,79,138,.30); border:1px solid rgba(255,255,255,.10);
   animation:popIn .5s ease both; }}
+/* CSS Grid single-cell stacking: every direct child of .gov-header occupies
+   the SAME grid cell (the full header), layered by plain DOM order -- later
+   children paint on top of earlier ones automatically. This replaces a
+   fragile chain of position:absolute + inset:0 + z-index overrides that kept
+   breaking as new elements (the carousel) were added: each fix required
+   guessing which OTHER rule might still be silently overriding it. Grid
+   stacking has no such ambiguity -- there is nothing to override, and every
+   child automatically stretches to fill the cell with no inset arithmetic. */
+.gov-header > * {{ grid-area:1/1; min-width:0; min-height:0; }}
 .gov-header::before {{ content:""; position:absolute; inset:0; z-index:1;
   background:radial-gradient(500px 180px at 88% -10%, rgba(46,169,102,.4), transparent 70%); }}
 .gov-header::after {{ content:""; position:absolute; right:26px; top:0; bottom:0; width:1px;
   z-index:1; background:linear-gradient(180deg,transparent,rgba(255,255,255,.15),transparent); }}
 .gov-header h1 {{ font-size:1.6rem; margin:0; line-height:1.1; color:#fff;
-  font-weight:800; letter-spacing:-.02em; position:relative; z-index:2; }}
-.gov-header .sub {{ opacity:.9; font-size:.9rem; margin-top:5px; font-weight:500;
-  position:relative; z-index:2; }}
-.gov-header .flag {{ height:5px; width:88px; border-radius:4px; margin-top:11px; position:relative;
-  z-index:2; background:linear-gradient(90deg,var(--green) 0 72%, var(--gold) 72% 100%);
+  font-weight:800; letter-spacing:-.02em; }}
+.gov-header .sub {{ opacity:.9; font-size:.9rem; margin-top:5px; font-weight:500; }}
+.gov-header .flag {{ height:5px; width:88px; border-radius:4px; margin-top:11px;
+  background:linear-gradient(90deg,var(--green) 0 72%, var(--gold) 72% 100%);
   box-shadow:0 2px 10px rgba(242,193,78,.5); }}
-.gov-header > div:first-child {{ position:relative; z-index:2; }}
-/* The rule above was written for the icon/text wrapper divs, back before the
-   photo carousel existed. Now that the carousel is inserted as the header's
-   actual first child (when photos are present), that old selector matches
-   it too — and being more specific than .mh-carousel's own rule, it was
-   silently overriding position:absolute with position:relative, collapsing
-   the whole carousel to near-nothing. This override guarantees the carousel
-   always keeps its intended full-bleed background positioning regardless. */
-.gov-header > .mh-carousel {{ position:absolute !important; inset:0 !important;
-  z-index:0 !important; }}
-/* The icon and title/subtitle content must always sit above the carousel and
-   scrim, regardless of which child position they end up in -- explicit class
-   instead of relying on DOM order (:first-child), which broke once the
-   carousel started being inserted before them. */
-.gov-header > .gh-content {{ position:relative; z-index:2; }}
-.topstat {{ margin-left:auto; display:flex; gap:26px; position:relative; z-index:2; }}
+/* The icon+text row: the LAST child in DOM order, so it paints above both the
+   carousel and the decorative pseudo-highlights (z-index:1) without needing
+   its own z-index at all under grid stacking -- but we set one explicitly
+   anyway as a second, independent guarantee. */
+.gh-row {{ position:relative; z-index:2; display:flex; align-items:center;
+  gap:20px; padding:22px 30px; height:100%; }}
+.topstat {{ margin-left:auto; display:flex; gap:26px; }}
 .topstat .ts {{ text-align:right; }}
 .topstat .tv {{ font-family:'Plus Jakarta Sans'; font-weight:800; font-size:1.35rem; color:#fff; }}
 .topstat .tl {{ font-size:.68rem; color:#a9c6e0; text-transform:uppercase; letter-spacing:.08em; }}
@@ -261,10 +260,10 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
    Each photo shows for a clean 3-second window, then crossfades to the next,
    looping forever over a 9-second cycle. A dark scrim sits on top so header
    text stays legible no matter what the photos look like. Renders nothing
-   (no layout change) until assets/masthead1.jpg etc. actually exist. ---- */
-.mh-carousel {{ position:absolute; inset:0; z-index:0; overflow:hidden;
-  border-radius:22px; }}
-.mh-photo {{ position:absolute; inset:0;
+   (no layout change) until assets/masthead1.jpg etc. actually exist. Fills
+   its grid cell automatically -- no position/inset needed. ---- */
+.mh-carousel {{ position:relative; width:100%; height:100%; overflow:hidden; }}
+.mh-photo {{ position:absolute; inset:0; width:100%; height:100%;
   object-fit:cover; opacity:0; }}
 .mh-photo1 {{ animation:mhFade1 9s ease-in-out infinite; }}
 .mh-photo2 {{ animation:mhFade2 9s ease-in-out infinite; }}
@@ -493,10 +492,10 @@ def _check_access() -> bool:
         return True
 
     st.markdown(
-        f"<div class='gov-header'><div>{_bd_flag_svg('2.4rem')}</div>"
+        f"<div class='gov-header'><div class='gh-row'>{_bd_flag_svg('2.4rem')}"
         "<div><h1>National Athlete Performance Dashboard</h1>"
         "<div class='sub'>Ministry of Youth &amp; Sports · Bangladesh</div>"
-        "<div class='flag'></div></div></div>",
+        "<div class='flag'></div></div></div></div>",
         unsafe_allow_html=True,
     )
     st.markdown("#### 🔒 Restricted access")
@@ -727,10 +726,10 @@ scoped = df[df["ID"].isin(filter_ids)]
 # --------------------------------------------------------------------------- #
 st.markdown(
     f"<div class='gov-header'>{_masthead_carousel_html()}"
-    f"<div class='gh-content'>{_bd_flag_svg('2.3rem')}</div>"
-    "<div class='gh-content'><h1>National Athlete Performance Platform</h1>"
+    f"<div class='gh-row'>{_bd_flag_svg('2.3rem')}"
+    "<div><h1>National Athlete Performance Platform</h1>"
     "<div class='sub'>Ministry of Youth &amp; Sports · Government of Bangladesh</div>"
-    "<div class='flag'></div></div></div>",
+    "<div class='flag'></div></div></div></div>",
     unsafe_allow_html=True,
 )
 
@@ -1571,12 +1570,12 @@ def page_notunkuri():
     st.markdown(
         "<div class='gov-header' style='background:linear-gradient(120deg,"
         f"{GREEN} 0%, #14663a 60%, {NAVY} 130%)'>"
-        "<div style='font-size:2.4rem'>🌱</div>"
+        "<div class='gh-row'><div style='font-size:2.4rem'>🌱</div>"
         f"<div><h1>{t('page_notunkuri_title')}</h1>"
         f"<div class='sub'>"
         + ("তৃণমূল প্রতিভা অনুসন্ধান · বয়স ১২–১৪ · যুব ও ক্রীড়া মন্ত্রণালয়" if is_bangla()
            else "Grassroots talent hunt · Ages 12–14 · Ministry of Youth &amp; Sports")
-        + "</div><div class='flag'></div></div></div>", unsafe_allow_html=True)
+        + "</div><div class='flag'></div></div></div></div>", unsafe_allow_html=True)
 
     st.info(
         ("📊 কর্মসূচির প্রকৃত প্রকাশিত মোট সংখ্যার (১,৬০,৭৭৯ নিবন্ধিত) উপর ভিত্তি করে "
@@ -1716,10 +1715,10 @@ def page_stipend():
     st.markdown(
         "<div class='gov-header' style='background:linear-gradient(120deg,"
         f"{GOLD} 0%, #a97f2e 55%, {NAVY} 130%)'>"
-        "<div style='font-size:2.4rem'>💳</div>"
+        "<div class='gh-row'><div style='font-size:2.4rem'>💳</div>"
         f"<div><h1>{_flag_title}</h1>"
         f"<div class='sub'>{_flag_sub}</div>"
-        "<div class='flag'></div></div></div>", unsafe_allow_html=True)
+        "<div class='flag'></div></div></div></div>", unsafe_allow_html=True)
 
     if is_bangla():
         st.info(
