@@ -257,26 +257,18 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
 .topstat .tl {{ font-size:.68rem; color:#a9c6e0; text-transform:uppercase; letter-spacing:.08em; }}
 
 /* ---------- Masthead photo carousel (behind the text, above the gradient) --
-   Each photo shows for a clean 3-second window, then crossfades to the next,
-   looping forever over a 9-second cycle. A dark scrim sits on top so header
-   text stays legible no matter what the photos look like. Renders nothing
-   (no layout change) until assets/masthead1.jpg etc. actually exist. Fills
-   its grid cell automatically -- no position/inset needed. ---- */
+   Each photo shows for a clean, configurable window, then crossfades to the
+   next, looping forever. A dark scrim sits on top so header text stays
+   legible no matter what the photos look like. Renders nothing (no layout
+   change) until assets/masthead1.jpg etc. actually exist. Fills its grid
+   cell automatically -- no position/inset needed. The per-image @keyframes
+   are generated dynamically in _masthead_carousel_html() based on however
+   many masthead*.jpg files actually exist, rather than hardcoded for a
+   fixed count -- so adding a 4th, 5th, 6th photo (or changing the timing)
+   never requires touching this stylesheet again. ---- */
 .mh-carousel {{ position:relative; width:100%; height:100%; overflow:hidden; }}
 .mh-photo {{ position:absolute !important; inset:0 !important; width:100% !important;
   height:100% !important; object-fit:fill !important; opacity:0; }}
-.mh-photo1 {{ animation:mhFade1 9s ease-in-out infinite; }}
-.mh-photo2 {{ animation:mhFade2 9s ease-in-out infinite; }}
-.mh-photo3 {{ animation:mhFade3 9s ease-in-out infinite; }}
-@keyframes mhFade1 {{
-  0% {{ opacity:0; }} 2% {{ opacity:.85; }} 30% {{ opacity:.85; }}
-  36% {{ opacity:0; }} 100% {{ opacity:0; }} }}
-@keyframes mhFade2 {{
-  0% {{ opacity:0; }} 33% {{ opacity:0; }} 36% {{ opacity:.85; }}
-  63% {{ opacity:.85; }} 69% {{ opacity:0; }} 100% {{ opacity:0; }} }}
-@keyframes mhFade3 {{
-  0% {{ opacity:0; }} 66% {{ opacity:0; }} 69% {{ opacity:.85; }}
-  97% {{ opacity:.85; }} 100% {{ opacity:0; }} }}
 /* Darken ONLY a narrow band directly behind the title text -- the photo
    should read as covering the whole banner, so the wash fades out fast
    (fully clear by ~38% width) instead of dimming a big chunk of it. */
@@ -430,39 +422,75 @@ def _bd_flag_svg(size: str = "2.3rem") -> str:
     )
 
 
-# Masthead background carousel — reads up to 3 local photos, if present.
-# Expected files (add these yourself; none are required for the app to run):
-#   assets/masthead1.jpg, assets/masthead2.jpg, assets/masthead3.jpg
-# Until those files exist, the header simply shows its plain gradient
+# Masthead background carousel — automatically picks up ANY masthead*.jpg
+# files found in assets/ (masthead1.jpg, masthead2.jpg, masthead3.jpg, ...,
+# up to MASTHEAD_MAX_PHOTOS). Add or remove photos by adding/removing files
+# with the next number in sequence — no code change needed either way.
+# Until at least one exists, the header simply shows its plain gradient
 # background — there is no error, no missing-image icon, no regression.
-MASTHEAD_IMG_PATHS = [APP_DIR / "assets" / f"masthead{i}.jpg" for i in (1, 2, 3)]
+MASTHEAD_MAX_PHOTOS = 10
+MASTHEAD_SECONDS_PER_PHOTO = 5   # how long each photo is fully visible
 
 
 @st.cache_data(show_spinner=False)
 def _masthead_images_b64() -> list[str]:
-    """Base64-encode whichever masthead photos exist (skips missing ones)."""
+    """Base64-encode whichever masthead photos exist, in numeric order,
+    stopping at the first gap (masthead1.jpg, masthead2.jpg, ... must be
+    consecutive from 1 — this keeps the numbering unambiguous)."""
     out = []
-    for p in MASTHEAD_IMG_PATHS:
-        if p.exists():
-            out.append(base64.b64encode(p.read_bytes()).decode())
+    for i in range(1, MASTHEAD_MAX_PHOTOS + 1):
+        p = APP_DIR / "assets" / f"masthead{i}.jpg"
+        if not p.exists():
+            break
+        out.append(base64.b64encode(p.read_bytes()).decode())
     return out
 
 
-def _masthead_carousel_html(opacity: float = 0.55) -> str:
-    """Absolutely-positioned, auto-rotating background layer for the header:
-    each photo shows for a clean 3-second window (9s total for 3 images),
-    then crossfades to the next, looping forever. A translucent navy scrim
-    sits above the photos so header text stays legible regardless of what
-    the photos look like. Returns "" (nothing) if no photos are present yet."""
+def _masthead_carousel_html() -> str:
+    """Absolutely-positioned, auto-rotating background layer for the header.
+
+    Each photo is fully visible for MASTHEAD_SECONDS_PER_PHOTO seconds, then
+    crossfades to the next, looping forever — for however many photos are
+    actually present (2, 3, 5, however many). The crossfade timing (which
+    keyframe percentages correspond to which photo) is computed here, in
+    Python, from the actual photo count, rather than hardcoded in the
+    stylesheet for a fixed number — so changing the count or the per-photo
+    duration is a one-line change, not a CSS rewrite. A translucent navy
+    scrim sits above the photos so header text stays legible regardless of
+    what the photos look like. Returns "" if no photos exist yet."""
     imgs = _masthead_images_b64()
-    if not imgs:
+    n = len(imgs)
+    if n == 0:
         return ""
-    layers = "".join(
-        f"<img src='data:image/jpeg;base64,{b64}' class='mh-photo mh-photo{i+1}'/>"
-        for i, b64 in enumerate(imgs)
-    )
+
+    total = n * MASTHEAD_SECONDS_PER_PHOTO
+    blend_pct = min(3.0, 100.0 / n / 4)  # short crossfade blend, scales with slot size
+
+    keyframes = []
+    layers = []
+    for i in range(n):
+        start_pct = i / n * 100
+        end_pct = (i + 1) / n * 100
+        fade_in_end = min(start_pct + blend_pct, end_pct)
+        fade_out_start = max(end_pct - blend_pct, start_pct)
+        name = f"mhFade{i+1}"
+        keyframes.append(
+            f"@keyframes {name} {{"
+            f"0% {{ opacity:0; }} "
+            f"{start_pct:.2f}% {{ opacity:0; }} "
+            f"{fade_in_end:.2f}% {{ opacity:.85; }} "
+            f"{fade_out_start:.2f}% {{ opacity:.85; }} "
+            f"{end_pct:.2f}% {{ opacity:0; }} "
+            f"100% {{ opacity:0; }} }}"
+        )
+        layers.append(
+            f"<img src='data:image/jpeg;base64,{imgs[i]}' class='mh-photo' "
+            f"style='animation:{name} {total}s ease-in-out infinite'/>"
+        )
+
+    style_tag = f"<style>{''.join(keyframes)}</style>"
     return (
-        f"<div class='mh-carousel'>{layers}"
+        f"{style_tag}<div class='mh-carousel'>{''.join(layers)}"
         f"<div class='mh-scrim'></div></div>"
     )
 
