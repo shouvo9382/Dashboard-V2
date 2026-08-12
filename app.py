@@ -268,7 +268,7 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
    never requires touching this stylesheet again. ---- */
 .mh-carousel {{ position:relative; width:100%; height:100%; overflow:hidden; }}
 .mh-photo {{ position:absolute !important; inset:0 !important; width:100% !important;
-  height:100% !important; object-fit:fill !important; opacity:0; }}
+  height:100% !important; object-fit:fill !important; opacity:.85; will-change:transform; }}
 /* Darken ONLY a narrow band directly behind the title text -- the photo
    should read as covering the whole banner, so the wash fades out fast
    (fully clear by ~38% width) instead of dimming a big chunk of it. */
@@ -449,39 +449,50 @@ def _masthead_images_b64() -> list[str]:
 def _masthead_carousel_html() -> str:
     """Absolutely-positioned, auto-rotating background layer for the header.
 
-    Each photo is fully visible for MASTHEAD_SECONDS_PER_PHOTO seconds, then
-    crossfades to the next, looping forever — for however many photos are
-    actually present (2, 3, 5, however many). The crossfade timing (which
-    keyframe percentages correspond to which photo) is computed here, in
-    Python, from the actual photo count, rather than hardcoded in the
-    stylesheet for a fixed number — so changing the count or the per-photo
-    duration is a one-line change, not a CSS rewrite. A translucent navy
-    scrim sits above the photos so header text stays legible regardless of
-    what the photos look like. Returns "" if no photos exist yet."""
+    Each photo is fully visible (settled) for MASTHEAD_SECONDS_PER_PHOTO
+    seconds, then SLIDES OUT to the left while the next photo simultaneously
+    slides IN from the right, looping forever — for however many photos are
+    actually present (2, 3, 5, however many). The slide timing (which
+    keyframe percentages correspond to which photo, and how long the slide
+    itself takes) is computed here, in Python, from the actual photo count,
+    rather than hardcoded in the stylesheet for a fixed number — so changing
+    the count or the per-photo duration is a one-line change, not a CSS
+    rewrite. A translucent navy scrim sits above the photos so header text
+    stays legible regardless of what the photos look like. Returns "" if no
+    photos exist yet.
+
+    Mechanics: each image's OWN keyframe animation spans the FULL cycle, not
+    just its own slot -- outside its slot it sits parked at translateX(100%)
+    (off-screen right, waiting its turn) or translateX(-100%) (off-screen
+    left, already shown), matching how a real sliding carousel works. Only
+    during its own slot does it slide to translateX(0%) (centred, visible).
+    `.mh-carousel`'s `overflow:hidden` clips the parked/sliding images so
+    nothing peeks outside the banner edges."""
     imgs = _masthead_images_b64()
     n = len(imgs)
     if n == 0:
         return ""
 
     total = n * MASTHEAD_SECONDS_PER_PHOTO
-    blend_pct = min(3.0, 100.0 / n / 4)  # short crossfade blend, scales with slot size
+    slot_pct = 100.0 / n
+    slide_pct = min(slot_pct * 0.18, 6.0)  # how much of each slot is the slide motion itself
 
     keyframes = []
     layers = []
     for i in range(n):
-        start_pct = i / n * 100
-        end_pct = (i + 1) / n * 100
-        fade_in_end = min(start_pct + blend_pct, end_pct)
-        fade_out_start = max(end_pct - blend_pct, start_pct)
-        name = f"mhFade{i+1}"
+        start_pct = i * slot_pct
+        end_pct = (i + 1) * slot_pct
+        slide_in_end = min(start_pct + slide_pct, end_pct)
+        slide_out_start = max(end_pct - slide_pct, start_pct)
+        name = f"mhSlide{i+1}"
         keyframes.append(
             f"@keyframes {name} {{"
-            f"0% {{ opacity:0; }} "
-            f"{start_pct:.2f}% {{ opacity:0; }} "
-            f"{fade_in_end:.2f}% {{ opacity:.85; }} "
-            f"{fade_out_start:.2f}% {{ opacity:.85; }} "
-            f"{end_pct:.2f}% {{ opacity:0; }} "
-            f"100% {{ opacity:0; }} }}"
+            f"0% {{ transform:translateX(100%); }} "
+            f"{start_pct:.2f}% {{ transform:translateX(100%); }} "
+            f"{slide_in_end:.2f}% {{ transform:translateX(0%); }} "
+            f"{slide_out_start:.2f}% {{ transform:translateX(0%); }} "
+            f"{end_pct:.2f}% {{ transform:translateX(-100%); }} "
+            f"100% {{ transform:translateX(-100%); }} }}"
         )
         layers.append(
             f"<img src='data:image/jpeg;base64,{imgs[i]}' class='mh-photo' "
