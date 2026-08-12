@@ -278,12 +278,12 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
 @keyframes mhFade3 {{
   0% {{ opacity:0; }} 66% {{ opacity:0; }} 69% {{ opacity:.85; }}
   97% {{ opacity:.85; }} 100% {{ opacity:0; }} }}
-/* A soft, translucent "watercolour" wash rather than a hard solid colour
-   band -- low peak opacity, blended over a wide distance, only near the
-   text on the left. Most of the banner stays a clear, undiluted photo. */
+/* Darken ONLY a narrow band directly behind the title text -- the photo
+   should read as covering the whole banner, so the wash fades out fast
+   (fully clear by ~38% width) instead of dimming a big chunk of it. */
 .mh-scrim {{ position:absolute; inset:0;
-  background:linear-gradient(100deg, rgba(10,35,52,.5) 0%, rgba(10,35,52,.38) 22%,
-             rgba(10,35,52,.2) 40%, rgba(10,35,52,.06) 58%, rgba(10,35,52,0) 72%); }}
+  background:linear-gradient(100deg, rgba(10,35,52,.42) 0%, rgba(10,35,52,.24) 14%,
+             rgba(10,35,52,.08) 26%, rgba(10,35,52,0) 38%); }}
 
 /* ---------- KPI tiles ---------- */
 .kpi {{
