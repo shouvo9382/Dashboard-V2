@@ -256,17 +256,20 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
 .mh-photo2 {{ animation:mhFade2 9s ease-in-out infinite; }}
 .mh-photo3 {{ animation:mhFade3 9s ease-in-out infinite; }}
 @keyframes mhFade1 {{
-  0% {{ opacity:0; }} 2% {{ opacity:.55; }} 30% {{ opacity:.55; }}
+  0% {{ opacity:0; }} 2% {{ opacity:.92; }} 30% {{ opacity:.92; }}
   36% {{ opacity:0; }} 100% {{ opacity:0; }} }}
 @keyframes mhFade2 {{
-  0% {{ opacity:0; }} 33% {{ opacity:0; }} 36% {{ opacity:.55; }}
-  63% {{ opacity:.55; }} 69% {{ opacity:0; }} 100% {{ opacity:0; }} }}
+  0% {{ opacity:0; }} 33% {{ opacity:0; }} 36% {{ opacity:.92; }}
+  63% {{ opacity:.92; }} 69% {{ opacity:0; }} 100% {{ opacity:0; }} }}
 @keyframes mhFade3 {{
-  0% {{ opacity:0; }} 66% {{ opacity:0; }} 69% {{ opacity:.55; }}
-  97% {{ opacity:.55; }} 100% {{ opacity:0; }} }}
+  0% {{ opacity:0; }} 66% {{ opacity:0; }} 69% {{ opacity:.92; }}
+  97% {{ opacity:.92; }} 100% {{ opacity:0; }} }}
+/* Darken ONLY the zone behind the title/subtitle text (left side) so the
+   photos stay clearly visible across the rest of the banner, rather than
+   washing the whole image with a uniform dark layer. */
 .mh-scrim {{ position:absolute; inset:0;
-  background:linear-gradient(115deg, rgba(11,79,138,.82) 0%, rgba(10,59,70,.80) 55%,
-             rgba(10,59,70,.72) 120%); }}
+  background:linear-gradient(90deg, rgba(8,28,42,.85) 0%, rgba(8,28,42,.78) 32%,
+             rgba(8,28,42,.42) 52%, rgba(8,28,42,.12) 70%, rgba(8,28,42,0) 85%); }}
 
 /* ---------- KPI tiles ---------- */
 .kpi {{
