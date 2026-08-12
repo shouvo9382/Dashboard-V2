@@ -872,15 +872,18 @@ NEWS_ITEMS = [
     },
     {
         "headline": "Sports Card allowance programme to expand from 300 to 500 athletes",
-        "summary": ("Junior & Sports Minister Aminul Haque announced plans to raise the "
-                    "number of Sports Card allowance recipients from 300 to 500, bringing "
-                    "roughly 200 more athletes under the monthly government stipend. "
-                    "Newly medal-winning athletes at international meets are also to be "
-                    "added to the programme on a rolling basis."),
-        "date": "2026-08-08", "category": "Governance", "priority": "High",
-        "source": "Amader Barta",
-        "url": "https://www.amaderbarta.net/bn/news/another-200-athletes-are-coming-under-the-allowance-scheme-380765",
-        "image_url": "",
+        "summary": ("Speaking at the opening of an Asian Para Games training camp at "
+                    "National Stadium, Junior & Sports Minister Aminul Haque announced "
+                    "plans to raise Sports Card allowance recipients from 300 to 500 "
+                    "within a month, bringing roughly 200 more athletes under the "
+                    "monthly government stipend — with para-athletes and future "
+                    "medal-winners added on a rolling basis. He also announced plans "
+                    "for a national-level para-sports tournament and a 'Notun Kuri "
+                    "Para Sports' nationwide talent hunt."),
+        "date": "2026-08-06", "category": "Governance", "priority": "High",
+        "source": "Shomoyer Alo",
+        "url": "https://www.shomoyeralo.com/news/376666",
+        "image_url": "https://www.shomoyeralo.com/2026/08/06/sa_122.1786003380.jpg",
     },
     {
         "headline": "Deputy Minister urges youth toward social responsibility at Tiger Run event",
