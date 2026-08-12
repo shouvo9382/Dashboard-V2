@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import base64
+
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -79,7 +81,7 @@ STATUS_COLORS = {
 
 st.set_page_config(
     page_title="BD Sports Ministry — Athlete Dashboard",
-    page_icon="🏅",
+    page_icon="🇧🇩",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -218,26 +220,53 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
 
 /* ---------- Topbar / masthead ---------- */
 .gov-header {{
-  position:relative; overflow:hidden;
+  position:relative; overflow:hidden; min-height:260px;
   background:linear-gradient(115deg, var(--navy) 0%, var(--navy2) 50%, #0a3b46 120%);
   border-radius:22px; padding:22px 30px; margin:0 0 22px;
   display:flex; align-items:center; gap:20px; color:#fff;
   box-shadow:0 18px 50px rgba(11,79,138,.30); border:1px solid rgba(255,255,255,.10);
   animation:popIn .5s ease both; }}
-.gov-header::before {{ content:""; position:absolute; inset:0;
+.gov-header::before {{ content:""; position:absolute; inset:0; z-index:1;
   background:radial-gradient(500px 180px at 88% -10%, rgba(46,169,102,.4), transparent 70%); }}
 .gov-header::after {{ content:""; position:absolute; right:26px; top:0; bottom:0; width:1px;
-  background:linear-gradient(180deg,transparent,rgba(255,255,255,.15),transparent); }}
+  z-index:1; background:linear-gradient(180deg,transparent,rgba(255,255,255,.15),transparent); }}
 .gov-header h1 {{ font-size:1.6rem; margin:0; line-height:1.1; color:#fff;
-  font-weight:800; letter-spacing:-.02em; position:relative; }}
-.gov-header .sub {{ opacity:.9; font-size:.9rem; margin-top:5px; font-weight:500; position:relative; }}
+  font-weight:800; letter-spacing:-.02em; position:relative; z-index:2; }}
+.gov-header .sub {{ opacity:.9; font-size:.9rem; margin-top:5px; font-weight:500;
+  position:relative; z-index:2; }}
 .gov-header .flag {{ height:5px; width:88px; border-radius:4px; margin-top:11px; position:relative;
-  background:linear-gradient(90deg,var(--green) 0 72%, var(--gold) 72% 100%);
+  z-index:2; background:linear-gradient(90deg,var(--green) 0 72%, var(--gold) 72% 100%);
   box-shadow:0 2px 10px rgba(242,193,78,.5); }}
-.topstat {{ margin-left:auto; display:flex; gap:26px; position:relative; }}
+.gov-header > div:first-child {{ position:relative; z-index:2; }}
+.topstat {{ margin-left:auto; display:flex; gap:26px; position:relative; z-index:2; }}
 .topstat .ts {{ text-align:right; }}
 .topstat .tv {{ font-family:'Plus Jakarta Sans'; font-weight:800; font-size:1.35rem; color:#fff; }}
 .topstat .tl {{ font-size:.68rem; color:#a9c6e0; text-transform:uppercase; letter-spacing:.08em; }}
+
+/* ---------- Masthead photo carousel (behind the text, above the gradient) --
+   Each photo shows for a clean 3-second window, then crossfades to the next,
+   looping forever over a 9-second cycle. A dark scrim sits on top so header
+   text stays legible no matter what the photos look like. Renders nothing
+   (no layout change) until assets/masthead1.jpg etc. actually exist. ---- */
+.mh-carousel {{ position:absolute; inset:0; z-index:0; overflow:hidden;
+  border-radius:22px; }}
+.mh-photo {{ position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; opacity:0; }}
+.mh-photo1 {{ animation:mhFade1 9s ease-in-out infinite; }}
+.mh-photo2 {{ animation:mhFade2 9s ease-in-out infinite; }}
+.mh-photo3 {{ animation:mhFade3 9s ease-in-out infinite; }}
+@keyframes mhFade1 {{
+  0% {{ opacity:0; }} 2% {{ opacity:.55; }} 30% {{ opacity:.55; }}
+  36% {{ opacity:0; }} 100% {{ opacity:0; }} }}
+@keyframes mhFade2 {{
+  0% {{ opacity:0; }} 33% {{ opacity:0; }} 36% {{ opacity:.55; }}
+  63% {{ opacity:.55; }} 69% {{ opacity:0; }} 100% {{ opacity:0; }} }}
+@keyframes mhFade3 {{
+  0% {{ opacity:0; }} 66% {{ opacity:0; }} 69% {{ opacity:.55; }}
+  97% {{ opacity:.55; }} 100% {{ opacity:0; }} }}
+.mh-scrim {{ position:absolute; inset:0;
+  background:linear-gradient(115deg, rgba(11,79,138,.82) 0%, rgba(10,59,70,.80) 55%,
+             rgba(10,59,70,.72) 120%); }}
 
 /* ---------- KPI tiles ---------- */
 .kpi {{
@@ -369,6 +398,58 @@ st.markdown(CSS, unsafe_allow_html=True)
 st.markdown(f"<style>{i18n.BANGLA_FONT_CSS}</style>", unsafe_allow_html=True)
 
 
+def _bd_flag_svg(size: str = "2.3rem") -> str:
+    """A clean, proportionally-correct Bangladesh flag as inline SVG (no
+    external image dependency — reliable regardless of network/hotlinking).
+    Real flag proportions: 10:6 field, red disc diameter = 2/5 height,
+    centered vertically, offset slightly toward the hoist (left) side.
+    `size` sets the rendered height; width follows the 10:6 ratio."""
+    return (
+        f"<svg viewBox='0 0 100 60' xmlns='http://www.w3.org/2000/svg' "
+        f"style='height:{size};width:auto;display:block;border-radius:3px;"
+        f"box-shadow:0 2px 6px rgba(0,0,0,.25)'>"
+        f"<rect width='100' height='60' fill='#006A4E'/>"
+        f"<circle cx='45' cy='30' r='20' fill='#F42A41'/>"
+        f"</svg>"
+    )
+
+
+# Masthead background carousel — reads up to 3 local photos, if present.
+# Expected files (add these yourself; none are required for the app to run):
+#   assets/masthead1.jpg, assets/masthead2.jpg, assets/masthead3.jpg
+# Until those files exist, the header simply shows its plain gradient
+# background — there is no error, no missing-image icon, no regression.
+MASTHEAD_IMG_PATHS = [APP_DIR / "assets" / f"masthead{i}.jpg" for i in (1, 2, 3)]
+
+
+@st.cache_data(show_spinner=False)
+def _masthead_images_b64() -> list[str]:
+    """Base64-encode whichever masthead photos exist (skips missing ones)."""
+    out = []
+    for p in MASTHEAD_IMG_PATHS:
+        if p.exists():
+            out.append(base64.b64encode(p.read_bytes()).decode())
+    return out
+
+
+def _masthead_carousel_html(opacity: float = 0.55) -> str:
+    """Absolutely-positioned, auto-rotating background layer for the header:
+    each photo shows for a clean 3-second window (9s total for 3 images),
+    then crossfades to the next, looping forever. A translucent navy scrim
+    sits above the photos so header text stays legible regardless of what
+    the photos look like. Returns "" (nothing) if no photos are present yet."""
+    imgs = _masthead_images_b64()
+    if not imgs:
+        return ""
+    layers = "".join(
+        f"<img src='data:image/jpeg;base64,{b64}' class='mh-photo mh-photo{i+1}'/>"
+        for i, b64 in enumerate(imgs)
+    )
+    return (
+        f"<div class='mh-carousel'>{layers}"
+        f"<div class='mh-scrim'></div></div>"
+    )
+
 
 # --------------------------------------------------------------------------- #
 #  ACCESS GATE                                                                 #
@@ -395,7 +476,7 @@ def _check_access() -> bool:
         return True
 
     st.markdown(
-        "<div class='gov-header'><div style='font-size:2.4rem'>🏅</div>"
+        f"<div class='gov-header'><div>{_bd_flag_svg('2.4rem')}</div>"
         "<div><h1>National Athlete Performance Dashboard</h1>"
         "<div class='sub'>Ministry of Youth &amp; Sports · Bangladesh</div>"
         "<div class='flag'></div></div></div>",
@@ -482,8 +563,8 @@ with st.sidebar:
         "<div class='brand'>"
         "<div style='width:44px;height:44px;border-radius:13px;flex-shrink:0;"
         "background:linear-gradient(135deg,#1b8a4c,#0b4f8a);display:flex;"
-        "align-items:center;justify-content:center;font-size:1.5rem;"
-        "box-shadow:0 6px 16px rgba(0,0,0,.3)'>🏅</div>"
+        "align-items:center;justify-content:center;"
+        f"box-shadow:0 6px 16px rgba(0,0,0,.3)'>{_bd_flag_svg('1.35rem')}</div>"
         f"<div><div class='bt'>{t('brand_title')}</div>"
         f"<div class='bs'>{t('brand_sub')}</div></div></div>",
         unsafe_allow_html=True,
@@ -628,16 +709,11 @@ scoped = df[df["ID"].isin(filter_ids)]
 #  HEADER BANNER                                                               #
 # --------------------------------------------------------------------------- #
 st.markdown(
-    "<div class='gov-header'>"
-    "<div style='font-size:2.3rem'>🏅</div>"
+    f"<div class='gov-header'>{_masthead_carousel_html()}"
+    f"<div>{_bd_flag_svg('2.3rem')}</div>"
     "<div><h1>National Athlete Performance Platform</h1>"
     "<div class='sub'>Ministry of Youth &amp; Sports · Government of Bangladesh</div>"
-    "<div class='flag'></div></div>"
-    "<div class='topstat'>"
-    f"<div class='ts'><div class='tv'>{len(df):,}</div><div class='tl'>Athletes</div></div>"
-    f"<div class='ts'><div class='tv'>{df['Sport'].nunique()}</div><div class='tl'>Sports</div></div>"
-    f"<div class='ts'><div class='tv'>{df['division'].nunique()}</div><div class='tl'>Divisions</div></div>"
-    "</div></div>",
+    "<div class='flag'></div></div></div>",
     unsafe_allow_html=True,
 )
 
