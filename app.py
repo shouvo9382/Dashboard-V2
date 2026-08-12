@@ -264,7 +264,7 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
    its grid cell automatically -- no position/inset needed. ---- */
 .mh-carousel {{ position:relative; width:100%; height:100%; overflow:hidden; }}
 .mh-photo {{ position:absolute; inset:0; width:100%; height:100%;
-  object-fit:cover; opacity:0; }}
+  object-fit:fill; opacity:0; }}
 .mh-photo1 {{ animation:mhFade1 9s ease-in-out infinite; }}
 .mh-photo2 {{ animation:mhFade2 9s ease-in-out infinite; }}
 .mh-photo3 {{ animation:mhFade3 9s ease-in-out infinite; }}
