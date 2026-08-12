@@ -220,7 +220,7 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
 
 /* ---------- Topbar / masthead ---------- */
 .gov-header {{
-  position:relative; overflow:hidden; min-height:260px;
+  position:relative; overflow:hidden; aspect-ratio:3/1; min-height:220px;
   background:linear-gradient(115deg, var(--navy) 0%, var(--navy2) 50%, #0a3b46 120%);
   border-radius:22px; padding:22px 30px; margin:0 0 22px;
   display:flex; align-items:center; gap:20px; color:#fff;
