@@ -238,6 +238,20 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
   z-index:2; background:linear-gradient(90deg,var(--green) 0 72%, var(--gold) 72% 100%);
   box-shadow:0 2px 10px rgba(242,193,78,.5); }}
 .gov-header > div:first-child {{ position:relative; z-index:2; }}
+/* The rule above was written for the icon/text wrapper divs, back before the
+   photo carousel existed. Now that the carousel is inserted as the header's
+   actual first child (when photos are present), that old selector matches
+   it too — and being more specific than .mh-carousel's own rule, it was
+   silently overriding position:absolute with position:relative, collapsing
+   the whole carousel to near-nothing. This override guarantees the carousel
+   always keeps its intended full-bleed background positioning regardless. */
+.gov-header > .mh-carousel {{ position:absolute !important; inset:0 !important;
+  z-index:0 !important; }}
+/* The icon and title/subtitle content must always sit above the carousel and
+   scrim, regardless of which child position they end up in -- explicit class
+   instead of relying on DOM order (:first-child), which broke once the
+   carousel started being inserted before them. */
+.gov-header > .gh-content {{ position:relative; z-index:2; }}
 .topstat {{ margin-left:auto; display:flex; gap:26px; position:relative; z-index:2; }}
 .topstat .ts {{ text-align:right; }}
 .topstat .tv {{ font-family:'Plus Jakarta Sans'; font-weight:800; font-size:1.35rem; color:#fff; }}
@@ -256,20 +270,20 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
 .mh-photo2 {{ animation:mhFade2 9s ease-in-out infinite; }}
 .mh-photo3 {{ animation:mhFade3 9s ease-in-out infinite; }}
 @keyframes mhFade1 {{
-  0% {{ opacity:0; }} 2% {{ opacity:.92; }} 30% {{ opacity:.92; }}
+  0% {{ opacity:0; }} 2% {{ opacity:.85; }} 30% {{ opacity:.85; }}
   36% {{ opacity:0; }} 100% {{ opacity:0; }} }}
 @keyframes mhFade2 {{
-  0% {{ opacity:0; }} 33% {{ opacity:0; }} 36% {{ opacity:.92; }}
-  63% {{ opacity:.92; }} 69% {{ opacity:0; }} 100% {{ opacity:0; }} }}
+  0% {{ opacity:0; }} 33% {{ opacity:0; }} 36% {{ opacity:.85; }}
+  63% {{ opacity:.85; }} 69% {{ opacity:0; }} 100% {{ opacity:0; }} }}
 @keyframes mhFade3 {{
-  0% {{ opacity:0; }} 66% {{ opacity:0; }} 69% {{ opacity:.92; }}
-  97% {{ opacity:.92; }} 100% {{ opacity:0; }} }}
-/* Darken ONLY the zone behind the title/subtitle text (left side) so the
-   photos stay clearly visible across the rest of the banner, rather than
-   washing the whole image with a uniform dark layer. */
+  0% {{ opacity:0; }} 66% {{ opacity:0; }} 69% {{ opacity:.85; }}
+  97% {{ opacity:.85; }} 100% {{ opacity:0; }} }}
+/* A soft, translucent "watercolour" wash rather than a hard solid colour
+   band -- low peak opacity, blended over a wide distance, only near the
+   text on the left. Most of the banner stays a clear, undiluted photo. */
 .mh-scrim {{ position:absolute; inset:0;
-  background:linear-gradient(90deg, rgba(8,28,42,.85) 0%, rgba(8,28,42,.78) 32%,
-             rgba(8,28,42,.42) 52%, rgba(8,28,42,.12) 70%, rgba(8,28,42,0) 85%); }}
+  background:linear-gradient(100deg, rgba(10,35,52,.5) 0%, rgba(10,35,52,.38) 22%,
+             rgba(10,35,52,.2) 40%, rgba(10,35,52,.06) 58%, rgba(10,35,52,0) 72%); }}
 
 /* ---------- KPI tiles ---------- */
 .kpi {{
@@ -713,8 +727,8 @@ scoped = df[df["ID"].isin(filter_ids)]
 # --------------------------------------------------------------------------- #
 st.markdown(
     f"<div class='gov-header'>{_masthead_carousel_html()}"
-    f"<div>{_bd_flag_svg('2.3rem')}</div>"
-    "<div><h1>National Athlete Performance Platform</h1>"
+    f"<div class='gh-content'>{_bd_flag_svg('2.3rem')}</div>"
+    "<div class='gh-content'><h1>National Athlete Performance Platform</h1>"
     "<div class='sub'>Ministry of Youth &amp; Sports · Government of Bangladesh</div>"
     "<div class='flag'></div></div></div>",
     unsafe_allow_html=True,
