@@ -850,12 +850,50 @@ NEWS_ITEMS = [
         "summary": ("PM and BNP Chairman Tarique Rahman hinted at supporting England at the "
                     "2026 FIFA World Cup while speaking with reporters in Dhaka, without "
                     "naming a team directly."),
-        "date": "2026-06-16", "category": "Football", "priority": "Low",
+        "date": "2026-06-16", "category": "Football", "priority": "Medium",
         "source": "Prothom Alo",
         "url": "https://en.prothomalo.com/sports/football/zms45t3gmt",
         "image_url": ("https://media.prothomalo.com/prothomalo-english%2F2026-06-16%2F"
                       "29svhrnc%2Fprothomalo-english2025-12-14blzwfzxjTarique-Rahman.avif"
                       "?w=1200&ar=16%3A9&auto=format%2Ccompress&mode=crop"),
+    },
+    {
+        "headline": "PM attends closing ceremony of Notun Kuri Sports 2025–26 national finals",
+        "summary": ("Prime Minister Tarique Rahman attended the national-round closing "
+                    "ceremony at Army Stadium, Dhaka, watching the girls’ football final "
+                    "(Rajshahi vs Rangpur) and the 100m sprint finals before presenting "
+                    "awards to winners. The programme drew roughly 170,000 athletes aged "
+                    "12–14 nationwide across eight disciplines; selected talents are being "
+                    "enrolled at BKSP for international-standard development."),
+        "date": "2026-07-27", "category": "Development", "priority": "High",
+        "source": "Shomoyer Alo",
+        "url": "https://www.shomoyeralo.com/news/374841",
+        "image_url": "https://www.shomoyeralo.com/2026/07/27/sa_113.1785150661.jpg",
+    },
+    {
+        "headline": "Sports Card allowance programme to expand from 300 to 500 athletes",
+        "summary": ("Junior & Sports Minister Aminul Haque announced plans to raise the "
+                    "number of Sports Card allowance recipients from 300 to 500, bringing "
+                    "roughly 200 more athletes under the monthly government stipend. "
+                    "Newly medal-winning athletes at international meets are also to be "
+                    "added to the programme on a rolling basis."),
+        "date": "2026-08-08", "category": "Governance", "priority": "High",
+        "source": "Amader Barta",
+        "url": "https://www.amaderbarta.net/bn/news/another-200-athletes-are-coming-under-the-allowance-scheme-380765",
+        "image_url": "",
+    },
+    {
+        "headline": "Deputy Minister urges youth toward social responsibility at Tiger Run event",
+        "summary": ("Speaking as chief guest at the 'Tiger Run 2026' mini-marathon held at "
+                    "Jahangirnagar University for World Tiger Day, Junior & Sports Minister "
+                    "Aminul Haque urged young people to embrace social responsibility, "
+                    "ethics and humanity alongside sport. He also highlighted the "
+                    "government's push to expand youth employment through training and "
+                    "skills development."),
+        "date": "2026-08-04", "category": "Youth", "priority": "Medium",
+        "source": "BSS",
+        "url": "https://www.bssnews.net/bangla/news/329820",
+        "image_url": "https://www.bssnews.net/bangla/assets/news_photos/2026/08/04/image-329820-1785844211.jpg",
     },
 ]
 

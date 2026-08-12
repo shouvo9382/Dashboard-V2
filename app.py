@@ -2176,54 +2176,55 @@ def page_news():
                else "No news matches the selected filters.")
         return
 
-    # Two-column responsive card grid.
-    cols = st.columns(2)
+    # Single-column, full-width feed with full (uncropped) article photos —
+    # each image keeps its natural aspect ratio instead of being cropped to
+    # a fixed thumbnail box, and cards use the full page width for a more
+    # premium, magazine-style read.
     for i, n in enumerate(news):
         g1, g2 = cat_grad.get(n["category"], cat_grad["Other"])
         pc = pri_color.get(n["priority"], MUTED)
         date_fmt = pd.to_datetime(n["date"]).strftime("%d %b %Y")
-        # Image: real <img> with graceful fallback to a category banner.
         if n.get("image_url"):
-            banner = (f"<div style='position:relative'>"
+            banner = (f"<div style='position:relative;background:#eef2f6'>"
                       f"<img src='{n['image_url']}' "
-                      f"style='width:100%;height:150px;object-fit:cover;"
-                      f"border-radius:12px 12px 0 0' "
+                      f"style='width:100%;height:auto;max-height:520px;"
+                      f"object-fit:contain;display:block;border-radius:16px 16px 0 0' "
                       f"onerror=\"this.style.display='none';"
                       f"this.nextElementSibling.style.display='flex'\"/>"
-                      f"<div style='display:none;width:100%;height:150px;"
-                      f"border-radius:12px 12px 0 0;align-items:center;"
+                      f"<div style='display:none;width:100%;height:260px;"
+                      f"border-radius:16px 16px 0 0;align-items:center;"
                       f"justify-content:center;color:#fff;font-weight:700;"
                       f"background:linear-gradient(135deg,{g1},{g2})'>"
                       f"{n['category']}</div></div>")
         else:
-            banner = (f"<div style='width:100%;height:150px;display:flex;"
+            banner = (f"<div style='width:100%;height:220px;display:flex;"
                       f"align-items:center;justify-content:center;color:#fff;"
-                      f"font-weight:700;font-size:1.05rem;letter-spacing:.02em;"
-                      f"border-radius:12px 12px 0 0;"
+                      f"font-weight:700;font-size:1.2rem;letter-spacing:.02em;"
+                      f"border-radius:16px 16px 0 0;"
                       f"background:linear-gradient(135deg,{g1},{g2})'>"
                       f"📰 {n['category']}</div>")
 
         card = (
-            f"<div style='background:#fff;border:1px solid #e4edf5;border-radius:14px;"
-            f"overflow:hidden;box-shadow:0 3px 12px rgba(18,40,58,.07);"
-            f"margin-bottom:16px'>{banner}"
-            f"<div style='padding:14px 16px'>"
-            f"<div style='display:flex;gap:8px;align-items:center;margin-bottom:8px'>"
-            f"<span style='background:{pc};color:#fff;font-size:.68rem;font-weight:700;"
-            f"padding:2px 9px;border-radius:999px'>{n['priority'].upper()}</span>"
-            f"<span style='color:{MUTED};font-size:.78rem'>{date_fmt} · {n['source']}</span>"
+            f"<div style='background:#fff;border:1px solid #e4edf5;border-radius:16px;"
+            f"overflow:hidden;box-shadow:0 4px 16px rgba(18,40,58,.08);"
+            f"margin-bottom:22px;max-width:820px'>{banner}"
+            f"<div style='padding:20px 24px'>"
+            f"<div style='display:flex;gap:10px;align-items:center;margin-bottom:10px'>"
+            f"<span style='background:{pc};color:#fff;font-size:.72rem;font-weight:700;"
+            f"padding:3px 11px;border-radius:999px'>{n['priority'].upper()}</span>"
+            f"<span style='color:{MUTED};font-size:.83rem'>{date_fmt} · {n['source']}</span>"
             f"</div>"
-            f"<div style='font-weight:750;color:{INK};font-size:1.02rem;line-height:1.25;"
-            f"margin-bottom:8px'>{n['headline']}</div>"
-            f"<div style='color:{MUTED};font-size:.9rem;line-height:1.45;margin-bottom:10px'>"
+            f"<div style='font-weight:750;color:{INK};font-size:1.25rem;line-height:1.3;"
+            f"margin-bottom:10px'>{n['headline']}</div>"
+            f"<div style='color:{MUTED};font-size:.97rem;line-height:1.55;margin-bottom:14px'>"
             f"{n['summary']}</div>"
             f"<a href='{n['url']}' target='_blank' rel='noopener' "
-            f"style='display:inline-block;color:{NAVY};font-weight:700;font-size:.85rem;"
+            f"style='display:inline-block;color:{NAVY};font-weight:700;font-size:.9rem;"
             f"text-decoration:none;border:1px solid #cfe0ef;background:{BG_SOFT};"
-            f"padding:5px 12px;border-radius:8px'>Read full article ↗</a>"
+            f"padding:7px 16px;border-radius:9px'>Read full article ↗</a>"
             f"</div></div>"
         )
-        cols[i % 2].markdown(card, unsafe_allow_html=True)
+        st.markdown(card, unsafe_allow_html=True)
 
 
 # --------------------------------------------------------------------------- #
