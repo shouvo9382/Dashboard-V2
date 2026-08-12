@@ -264,7 +264,7 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
    (no layout change) until assets/masthead1.jpg etc. actually exist. ---- */
 .mh-carousel {{ position:absolute; inset:0; z-index:0; overflow:hidden;
   border-radius:22px; }}
-.mh-photo {{ position:absolute; inset:0; width:100%; height:100%;
+.mh-photo {{ position:absolute; inset:0;
   object-fit:cover; opacity:0; }}
 .mh-photo1 {{ animation:mhFade1 9s ease-in-out infinite; }}
 .mh-photo2 {{ animation:mhFade2 9s ease-in-out infinite; }}
