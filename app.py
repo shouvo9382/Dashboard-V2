@@ -263,8 +263,8 @@ div[data-baseweb="popover"] * {{ color:{INK} !important; -webkit-text-fill-color
    (no layout change) until assets/masthead1.jpg etc. actually exist. Fills
    its grid cell automatically -- no position/inset needed. ---- */
 .mh-carousel {{ position:relative; width:100%; height:100%; overflow:hidden; }}
-.mh-photo {{ position:absolute; inset:0; width:100%; height:100%;
-  object-fit:fill; opacity:0; }}
+.mh-photo {{ position:absolute !important; inset:0 !important; width:100% !important;
+  height:100% !important; object-fit:fill !important; opacity:0; }}
 .mh-photo1 {{ animation:mhFade1 9s ease-in-out infinite; }}
 .mh-photo2 {{ animation:mhFade2 9s ease-in-out infinite; }}
 .mh-photo3 {{ animation:mhFade3 9s ease-in-out infinite; }}
