@@ -429,7 +429,7 @@ def _bd_flag_svg(size: str = "2.3rem") -> str:
 # Until at least one exists, the header simply shows its plain gradient
 # background — there is no error, no missing-image icon, no regression.
 MASTHEAD_MAX_PHOTOS = 10
-MASTHEAD_SECONDS_PER_PHOTO = 5   # how long each photo is fully visible
+MASTHEAD_SECONDS_PER_PHOTO = 4   # how long each photo is fully visible
 
 
 @st.cache_data(show_spinner=False)
